@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
+		<RootNamespace>HybridRenderingEngine</RootNamespace>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<NoWarn />
+		<TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+		<StartupObject>HybridRenderingEngine.Program</StartupObject>
+		<OutputPath>..\Build\</OutputPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="ImGui.NET" Version="1.87.3" />
+		<PackageReference Include="Silk.NET.Assimp" Version="2.15.0" />
+		<PackageReference Include="Silk.NET.OpenGL" Version="2.15.0" />
+		<PackageReference Include="Silk.NET.SDL" Version="2.15.0" />
+		<PackageReference Include="StbiSharp" Version="1.2.1" />
+	</ItemGroup>
+
+</Project>
