@@ -10,50 +10,49 @@ namespace HybridRenderingEngine
 		public static RenderManager Instance;
 
 		// Todo:: shaders should belong to a material not the rendermanager
-		private Shader depthPrePassShader, PBRClusteredShader, skyboxShader,
-			highPassFilterShader, gaussianBlurShader, screenSpaceShader,
-			dirShadowShader, pointShadowShader, fillCubeMapShader,
-			convolveCubeMap, preFilterSpecShader, integrateBRDFShader;
+		private Shader _depthPrePassShader, _pbrClusteredShader, _skyboxShader,
+			_highPassFilterShader, _gaussianBlurShader, _screenSpaceShader,
+			_dirShadowShader, _pointShadowShader, _fillCubeMapShader,
+			_convolveCubeMap, _preFilterSpecShader, _integrateBRDFShader;
 
 		// TODO::Compute shaders don't have a strong a case as regular shaders to be made a part of 
 		// other classes, since they feel more like static functions of the renderer than methods that
 		// are a part of certain objects. 
-		private ComputeShader buildAABBGridCompShader, cullLightsCompShader;
+		private ComputeShader _buildAABBGridCompShader, _cullLightsCompShader;
 
 		// The canvas is an abstraction for screen space rendering. It helped me build a mental model
 		// of drawing at the time but I think it is now unecessary since I feel much more comfortable with
 		// compute shaders and the inner workings of the GPU.
-		private Quad canvas;
+		private Quad _canvas;
 
 		// The variables that determine the size of the cluster grid. They're hand picked for now, but
 		// there is some space for optimization and tinkering as seen on the Olsson paper and the ID tech6
 		// presentation.
-		private const uint gridSizeX = 16;
-		private const uint gridSizeY = 9;
-		private const uint gridSizeZ = 24;
-		private const uint numClusters = gridSizeX * gridSizeY * gridSizeZ;
-		private uint sizeX;
+		private const uint GRID_SIZE_X = 16;
+		private const uint GRID_SIZE_Y = 9;
+		private const uint GRID_SIZE_Z = 24;
+		private const uint NUM_CLUSTERS = GRID_SIZE_X * GRID_SIZE_Y * GRID_SIZE_Z;
+		private uint _sizeX;
 
-		private int numLights;
-		private const uint maxLights = 1000; // pretty overkill for sponza, but ok for testing
-		private const uint maxLightsPerTile = 50;
+		private const uint MAX_LIGHTS = 1000; // Pretty overkill for sponza, but ok for testing
+		private const uint MAX_LIGHTS_PER_TILE = 50;
 
 		// Shader buffer objects, currently completely managed by the rendermanager class for creation
 		// using and uploading to the gpu, but they should be moved somwehre else to avoid bloat
-		private uint AABBvolumeGridSSBO, screenToViewSSBO;
-		private uint lightSSBO, lightIndexListSSBO, lightGridSSBO, lightIndexGlobalCountSSBO;
+		private uint _aabbVolumeGridSSBO, _screenToViewSSBO;
+		private uint _lightSSBO, _lightIndexListSSBO, _lightGridSSBO, _lightIndexGlobalCountSSBO;
 
 		// Render pipeline FrameBuffer objects. I absolutely hate that the pointlight shadows have distinct
 		// FBO's instead of one big one. I think we will take the approach that is outlined on the Id tech 6 talk
 		// and use a giant texture to store all textures. However, since this require a pretty substantial rewrite
 		// of the illumination code I have delayed this until after the first official github release of the
 		// project.
-		private ResolveBuffer simpleFBO;
-		private CaptureBuffer captureFBO;
-		private QuadHDRBuffer pingPongFBO;
-		private DirShadowBuffer dirShadowFBO;
-		private FrameBufferMultiSampled multiSampledFBO;
-		private PointShadowBuffer[] pointLightShadowFBOs;
+		private ResolveBuffer _simpleFBO;
+		private CaptureBuffer _captureFBO;
+		private QuadHDRBuffer _pingPongFBO;
+		private DirShadowBuffer _dirShadowFBO;
+		private FrameBufferMultiSampled _multiSampledFBO;
+		private PointShadowBuffer[] _pointLightShadowFBOs;
 
 		// Sets the internal pointers to the screen and the current scene and inits the software renderer instance.
 		public RenderManager(GL gl, Scene currentScene)
@@ -72,78 +71,205 @@ namespace HybridRenderingEngine
 			Console.WriteLine("Loading SSBO's...");
 			InitSSBOs(gl, currentScene);
 
-			Console.WriteLine("Preprocessing...");
+			Console.WriteLine("Pre-processing...");
 			PreProcess(gl, currentScene);
 
 			Console.WriteLine("Renderer Initialization complete.");
 		}
 
-		public void Quit(GL gl)
+		private void InitFBOs(GL gl, Scene currentScene)
 		{
-			canvas.Delete(gl);
-			simpleFBO.Delete(gl);
-			captureFBO.Delete(gl);
-			pingPongFBO.Delete(gl);
-			dirShadowFBO.Delete(gl);
-			multiSampledFBO.Delete(gl);
-			foreach (PointShadowBuffer fbo in pointLightShadowFBOs)
+			// Init variables
+			uint shadowMapResolution = currentScene.DirLight.ShadowRes;
+			uint skyboxRes = currentScene.Skybox.Res;
+
+			// Shadow Framebuffers
+			_pointLightShadowFBOs = new PointShadowBuffer[currentScene.PointLights.Length];
+
+			// Directional light
+			_dirShadowFBO = new DirShadowBuffer(gl, shadowMapResolution, shadowMapResolution);
+
+			// Point light
+			for (int i = 0; i < _pointLightShadowFBOs.Length; ++i)
 			{
-				fbo.Delete(gl);
+				shadowMapResolution = currentScene.PointLights[i].ShadowRes;
+				_pointLightShadowFBOs[i] = new PointShadowBuffer(gl, shadowMapResolution, shadowMapResolution);
 			}
 
-			buildAABBGridCompShader.Delete(gl);
-			cullLightsCompShader.Delete(gl);
-			fillCubeMapShader.Delete(gl);
-			convolveCubeMap.Delete(gl);
-			preFilterSpecShader.Delete(gl);
-			integrateBRDFShader.Delete(gl);
-			depthPrePassShader.Delete(gl);
-			PBRClusteredShader.Delete(gl);
-			skyboxShader.Delete(gl);
-			screenSpaceShader.Delete(gl);
-			dirShadowShader.Delete(gl);
-			pointShadowShader.Delete(gl);
-			highPassFilterShader.Delete(gl);
-			gaussianBlurShader.Delete(gl);
+			// Rendering buffers
+			_multiSampledFBO = new FrameBufferMultiSampled(gl);
+			_captureFBO = new CaptureBuffer(gl, skyboxRes, skyboxRes);
+
+			// Post processing buffers
+			_pingPongFBO = new QuadHDRBuffer(gl);
+			_simpleFBO = new ResolveBuffer(gl);
+		}
+
+		private void LoadShaders(GL gl)
+		{
+			// Pre-processing
+			_buildAABBGridCompShader = new ComputeShader(gl, "clusterShader.comp");
+			_cullLightsCompShader = new ComputeShader(gl, "clusterCullLightShader.comp");
+			_fillCubeMapShader = new Shader(gl, "cubeMapShader.vert", "buildCubeMapShader.frag");
+			_convolveCubeMap = new Shader(gl, "cubeMapShader.vert", "convolveCubemapShader.frag");
+			_preFilterSpecShader = new Shader(gl, "cubeMapShader.vert", "preFilteringShader.frag");
+			_integrateBRDFShader = new Shader(gl, "screenShader.vert", "brdfIntegralShader.frag");
+
+			// Rendering
+			_depthPrePassShader = new Shader(gl, "depthPassShader.vert", "depthPassShader.frag");
+			_pbrClusteredShader = new Shader(gl, "PBRClusteredShader.vert", "PBRClusteredShader.frag");
+			_skyboxShader = new Shader(gl, "skyboxShader.vert", "skyboxShader.frag");
+			_screenSpaceShader = new Shader(gl, "screenShader.vert", "screenShader.frag");
+
+			// Shadow mapping
+			_dirShadowShader = new Shader(gl, "shadowShader.vert", "shadowShader.frag");
+			_pointShadowShader = new Shader(gl, "pointShadowShader.vert", "pointShadowShader.frag", "pointShadowShader.geom");
+
+			// Post-processing
+			_highPassFilterShader = new Shader(gl, "splitHighShader.vert", "splitHighShader.frag");
+			_gaussianBlurShader = new Shader(gl, "blurShader.vert", "blurShader.frag");
+		}
+
+		// TODO:: some of the buffer generation and binding should be abstracted into a function
+		private unsafe void InitSSBOs(GL gl, Scene currentScene)
+		{
+			// Setting up tile size on both X and Y 
+			_sizeX = (uint)MathF.Ceiling(DisplayManager.SCREEN_WIDTH / (float)GRID_SIZE_X);
+
+			float zFar = currentScene.Cam.Frustum.FarPlane;
+			float zNear = currentScene.Cam.Frustum.NearPlane;
+
+			// Buffer containing all the clusters
+			// 2 Vec4s per cluster
+			{
+				_aabbVolumeGridSSBO = gl.GenBuffer();
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, _aabbVolumeGridSSBO);
+
+				// We generate the buffer but don't populate it yet.
+				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, NUM_CLUSTERS * 8 * sizeof(float), null, BufferUsageARB.StaticCopy);
+				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 1, _aabbVolumeGridSSBO);
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
+			}
+
+			// Setting up screen2View ssbo
+			{
+				_screenToViewSSBO = gl.GenBuffer();
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, _screenToViewSSBO);
+
+				// Setting up contents of buffer
+				ScreenToView screen2View;
+				Matrix4x4.Invert(currentScene.Cam.ProjectionMatrix, out screen2View.InverseProjectionMat);
+				screen2View.TileSizes[0] = GRID_SIZE_X;
+				screen2View.TileSizes[1] = GRID_SIZE_Y;
+				screen2View.TileSizes[2] = GRID_SIZE_Z;
+				screen2View.TileSizes[3] = _sizeX;
+				screen2View.ScreenWidth = DisplayManager.SCREEN_WIDTH;
+				screen2View.ScreenHeight = DisplayManager.SCREEN_HEIGHT;
+				// Basically reduced a log function into a simple multiplication an addition by pre-calculating these
+				screen2View.SliceScalingFactor = GRID_SIZE_Z / MathF.Log2(zFar / zNear);
+				screen2View.SliceBiasFactor = -(GRID_SIZE_Z * MathF.Log2(zNear) / MathF.Log2(zFar / zNear));
+
+				// Generating and copying data to memory in GPU
+				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, (uint)sizeof(ScreenToView), &screen2View, BufferUsageARB.StaticCopy);
+				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 2, _screenToViewSSBO);
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
+			}
+
+			// Setting up lights buffer that contains all the lights in the scene
+			{
+				_lightSSBO = gl.GenBuffer();
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, _lightSSBO);
+				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, MAX_LIGHTS * (uint)sizeof(GPULight), null, BufferUsageARB.DynamicDraw);
+
+				var lights = (GPULight*)gl.MapBuffer(BufferTargetARB.ShaderStorageBuffer, BufferAccessARB.ReadWrite);
+				for (int i = 0; i < _pointLightShadowFBOs.Length; ++i)
+				{
+					// Fetching the light from the current scene
+					PointLight light = currentScene.PointLights[i];
+					lights[i].Position = new Vector4(light.Position, 1f);
+					lights[i].Color = new Vector4(light.Color, 1f);
+					lights[i].IsEnabled = 1;
+					lights[i].Intensity = 1f;
+					lights[i].Range = 65f;
+				}
+				gl.UnmapBuffer(BufferTargetARB.ShaderStorageBuffer);
+				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 3, _lightSSBO);
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
+			}
+
+			// A list of indices to the lights that are active and intersect with a cluster
+			{
+				const uint TOTAL_NUM_LIGHTS = NUM_CLUSTERS * MAX_LIGHTS_PER_TILE; // 50 lights per tile max
+				_lightIndexListSSBO = gl.GenBuffer();
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, _lightIndexListSSBO);
+
+				// We generate the buffer but don't populate it yet
+				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, TOTAL_NUM_LIGHTS * sizeof(uint), null, BufferUsageARB.StaticCopy);
+				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 4, _lightIndexListSSBO);
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
+			}
+
+			// Every tile takes two unsigned ints one to represent the number of lights in that grid
+			// Another to represent the offset to the light index list from where to begin reading light indexes from
+			// This implementation is straight up from Olsson paper
+			{
+				_lightGridSSBO = gl.GenBuffer();
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, _lightGridSSBO);
+
+				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, NUM_CLUSTERS * 2 * sizeof(uint), null, BufferUsageARB.StaticCopy);
+				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 5, _lightGridSSBO);
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
+			}
+
+			// Setting up simplest ssbo in the world
+			{
+				_lightIndexGlobalCountSSBO = gl.GenBuffer();
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, _lightIndexGlobalCountSSBO);
+
+				// Every tile takes two unsigned ints one to represent the number of lights in that grid
+				// Another to represent the offset 
+				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, sizeof(uint), null, BufferUsageARB.StaticCopy);
+				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 6, _lightIndexGlobalCountSSBO);
+				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
+			}
 		}
 
 		private void PreProcess(GL gl, Scene currentScene)
 		{
 			// Initializing the surface that we use to draw screen-space effects
-			canvas = new Quad();
-			canvas.Setup(gl);
+			_canvas = new Quad(gl);
 
 			// Building the grid of AABB enclosing the view frustum clusters
-			buildAABBGridCompShader.Use(gl);
-			buildAABBGridCompShader.SetFloat(gl, "zNear", currentScene.mainCamera.cameraFrustum.nearPlane);
-			buildAABBGridCompShader.SetFloat(gl, "zFar", currentScene.mainCamera.cameraFrustum.farPlane);
-			ComputeShader.Dispatch(gl, gridSizeX, gridSizeY, gridSizeZ);
+			_buildAABBGridCompShader.Use(gl);
+			_buildAABBGridCompShader.SetFloat(gl, "zNear", currentScene.Cam.Frustum.NearPlane);
+			_buildAABBGridCompShader.SetFloat(gl, "zFar", currentScene.Cam.Frustum.FarPlane);
+			ComputeShader.Dispatch(gl, GRID_SIZE_X, GRID_SIZE_Y, GRID_SIZE_Z);
 
 			// Environment Mapping
 			// Passing equirectangular map to cubemap
-			captureFBO.bind(gl);
-			currentScene.mainSkyBox.FillCubeMapWithTexture(gl, fillCubeMapShader);
+			_captureFBO.Bind(gl);
+			currentScene.Skybox.FillCubeMapWithTexture(gl, _fillCubeMapShader);
 
 			// Cubemap convolution TODO:: This could probably be moved to a function of the scene or environment maps
 			// themselves as a class / static function
-			uint res = currentScene.irradianceMap.width;
-			captureFBO.resizeFrameBuffer(gl, res);
-			uint environmentID = currentScene.mainSkyBox.skyBoxCubeMap.textureID;
-			currentScene.irradianceMap.ConvolveCubeMap(gl, environmentID, convolveCubeMap);
+			uint res = currentScene.IrradianceMap.Width;
+			_captureFBO.Resize(gl, res);
+			uint environmentID = currentScene.Skybox.SkyboxCubeMap.Id;
+			currentScene.IrradianceMap.ConvolveCubeMap(gl, environmentID, _convolveCubeMap);
 
 			// Cubemap prefiltering TODO:: Same as above
-			uint captureRBO = captureFBO.depthBuffer;
-			currentScene.specFilteredMap.PreFilterCubeMap(gl, environmentID, captureRBO, preFilterSpecShader);
+			uint captureRBO = _captureFBO.Depth;
+			currentScene.SpecFilteredMap.PreFilterCubeMap(gl, environmentID, captureRBO, _preFilterSpecShader);
 
 			// BRDF lookup texture
-			integrateBRDFShader.Use(gl);
-			res = currentScene.brdfLUTTexture.height;
-			captureFBO.resizeFrameBuffer(gl, res);
-			uint id = currentScene.brdfLUTTexture.textureID;
+			_integrateBRDFShader.Use(gl);
+			res = currentScene.BRDF_LUT_Texture.Height;
+			_captureFBO.Resize(gl, res);
+			uint id = currentScene.BRDF_LUT_Texture.Id;
 			gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, id, 0);
 			gl.Viewport(0, 0, res, res);
 			gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-			canvas.Draw(gl);
+			_canvas.Render(gl);
 
 			// Making sure that the viewport is the correct size after rendering
 			gl.Viewport(0, 0, DisplayManager.SCREEN_WIDTH, DisplayManager.SCREEN_HEIGHT);
@@ -152,174 +278,17 @@ namespace HybridRenderingEngine
 			gl.DepthMask(true);
 
 			// Populating depth cube maps for the point light shadows
-			for (uint i = 0; i < currentScene.pointLightCount; ++i)
+			for (uint i = 0; i < _pointLightShadowFBOs.Length; ++i)
 			{
-				pointLightShadowFBOs[i].bind(gl);
-				pointLightShadowFBOs[i].clear(gl, ClearBufferMask.DepthBufferBit, Vector3.One);
-				currentScene.DrawPointLightShadow(gl, pointShadowShader, i, pointLightShadowFBOs[i].depthBuffer);
+				_pointLightShadowFBOs[i].Bind(gl);
+				FrameBuffer.Clear(gl, ClearBufferMask.DepthBufferBit, Vector3.One);
+				currentScene.DrawPointLightShadow(gl, _pointShadowShader, i, _pointLightShadowFBOs[i].Depth);
 			}
 
 			// Directional shadows
-			dirShadowFBO.bind(gl);
-			dirShadowFBO.clear(gl, ClearBufferMask.DepthBufferBit, Vector3.One);
-			currentScene.DrawDirLightShadows(gl, dirShadowShader, dirShadowFBO.depthBuffer);
-		}
-
-		// TODO:: some of the buffer generation and binding should be abstracted into a function
-		private unsafe void InitSSBOs(GL gl, Scene currentScene)
-		{
-			// Setting up tile size on both X and Y 
-			sizeX = (uint)MathF.Ceiling(DisplayManager.SCREEN_WIDTH / (float)gridSizeX);
-
-			float zFar = currentScene.mainCamera.cameraFrustum.farPlane;
-			float zNear = currentScene.mainCamera.cameraFrustum.nearPlane;
-
-			// Buffer containing all the clusters
-			// 2 Vec4s per cluster
-			{
-				AABBvolumeGridSSBO = gl.GenBuffer();
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, AABBvolumeGridSSBO);
-
-				// We generate the buffer but don't populate it yet.
-				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, numClusters * 8 * sizeof(float), null, BufferUsageARB.StaticCopy);
-				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 1, AABBvolumeGridSSBO);
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
-			}
-
-			// Setting up screen2View ssbo
-			{
-				screenToViewSSBO = gl.GenBuffer();
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, screenToViewSSBO);
-
-				// Setting up contents of buffer
-				ScreenToView screen2View;
-				Matrix4x4.Invert(currentScene.mainCamera.projectionMatrix, out screen2View.inverseProjectionMat);
-				screen2View.tileSizes[0] = gridSizeX;
-				screen2View.tileSizes[1] = gridSizeY;
-				screen2View.tileSizes[2] = gridSizeZ;
-				screen2View.tileSizes[3] = sizeX;
-				screen2View.screenWidth = DisplayManager.SCREEN_WIDTH;
-				screen2View.screenHeight = DisplayManager.SCREEN_HEIGHT;
-				// Basically reduced a log function into a simple multiplication an addition by pre-calculating these
-				screen2View.sliceScalingFactor = gridSizeZ / MathF.Log2(zFar / zNear);
-				screen2View.sliceBiasFactor = -(gridSizeZ * MathF.Log2(zNear) / MathF.Log2(zFar / zNear));
-
-				// Generating and copying data to memory in GPU
-				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, (uint)sizeof(ScreenToView), &screen2View, BufferUsageARB.StaticCopy);
-				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 2, screenToViewSSBO);
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
-			}
-
-			// Setting up lights buffer that contains all the lights in the scene
-			{
-				lightSSBO = gl.GenBuffer();
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, lightSSBO);
-				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, maxLights * (uint)sizeof(GPULight), null, BufferUsageARB.DynamicDraw);
-
-				var lights = (GPULight*)gl.MapBuffer(BufferTargetARB.ShaderStorageBuffer, BufferAccessARB.ReadWrite);
-				for (int i = 0; i < numLights; ++i)
-				{
-					// Fetching the light from the current scene
-					PointLight light = currentScene.GetPointLight(i);
-					lights[i].position = new Vector4(light.position, 1f);
-					lights[i].color = new Vector4(light.color, 1f);
-					lights[i].enabled = 1;
-					lights[i].intensity = 1f;
-					lights[i].range = 65f;
-				}
-				gl.UnmapBuffer(BufferTargetARB.ShaderStorageBuffer);
-				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 3, lightSSBO);
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
-			}
-
-			// A list of indices to the lights that are active and intersect with a cluster
-			{
-				uint totalNumLights = numClusters * maxLightsPerTile; // 50 lights per tile max
-				lightIndexListSSBO = gl.GenBuffer();
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, lightIndexListSSBO);
-
-				// We generate the buffer but don't populate it yet
-				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, totalNumLights * sizeof(uint), null, BufferUsageARB.StaticCopy);
-				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 4, lightIndexListSSBO);
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
-			}
-
-			// Every tile takes two unsigned ints one to represent the number of lights in that grid
-			// Another to represent the offset to the light index list from where to begin reading light indexes from
-			// This implementation is straight up from Olsson paper
-			{
-				lightGridSSBO = gl.GenBuffer();
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, lightGridSSBO);
-
-				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, numClusters * 2 * sizeof(uint), null, BufferUsageARB.StaticCopy);
-				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 5, lightGridSSBO);
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
-			}
-
-			// Setting up simplest ssbo in the world
-			{
-				lightIndexGlobalCountSSBO = gl.GenBuffer();
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, lightIndexGlobalCountSSBO);
-
-				// Every tile takes two unsigned ints one to represent the number of lights in that grid
-				// Another to represent the offset 
-				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, sizeof(uint), null, BufferUsageARB.StaticCopy);
-				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 6, lightIndexGlobalCountSSBO);
-				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
-			}
-		}
-
-		private void LoadShaders(GL gl)
-		{
-			// Pre-processing
-			buildAABBGridCompShader = new ComputeShader(gl, "clusterShader.comp");
-			cullLightsCompShader = new ComputeShader(gl, "clusterCullLightShader.comp");
-			fillCubeMapShader = new Shader(gl, "cubeMapShader.vert", "buildCubeMapShader.frag");
-			convolveCubeMap = new Shader(gl, "cubeMapShader.vert", "convolveCubemapShader.frag");
-			preFilterSpecShader = new Shader(gl, "cubeMapShader.vert", "preFilteringShader.frag");
-			integrateBRDFShader = new Shader(gl, "screenShader.vert", "brdfIntegralShader.frag");
-
-			// Rendering
-			depthPrePassShader = new Shader(gl, "depthPassShader.vert", "depthPassShader.frag");
-			PBRClusteredShader = new Shader(gl, "PBRClusteredShader.vert", "PBRClusteredShader.frag");
-			skyboxShader = new Shader(gl, "skyboxShader.vert", "skyboxShader.frag");
-			screenSpaceShader = new Shader(gl, "screenShader.vert", "screenShader.frag");
-
-			// Shadow mapping
-			dirShadowShader = new Shader(gl, "shadowShader.vert", "shadowShader.frag");
-			pointShadowShader = new Shader(gl, "pointShadowShader.vert", "pointShadowShader.frag", "pointShadowShader.geom");
-
-			// Post-processing
-			highPassFilterShader = new Shader(gl, "splitHighShader.vert", "splitHighShader.frag");
-			gaussianBlurShader = new Shader(gl, "blurShader.vert", "blurShader.frag");
-		}
-
-		private void InitFBOs(GL gl, Scene currentScene)
-		{
-			// Init variables
-			uint shadowMapResolution = currentScene.GetShadowRes();
-			uint skyboxRes = currentScene.mainSkyBox.resolution;
-			numLights = currentScene.pointLightCount;
-
-			// Shadow Framebuffers
-			pointLightShadowFBOs = new PointShadowBuffer[numLights];
-
-			// Directional light
-			dirShadowFBO = new DirShadowBuffer(gl, shadowMapResolution, shadowMapResolution);
-
-			// Point light
-			for (int i = 0; i < numLights; ++i)
-			{
-				pointLightShadowFBOs[i] = new PointShadowBuffer(gl, shadowMapResolution, shadowMapResolution);
-			}
-
-			// Rendering buffers
-			multiSampledFBO = new FrameBufferMultiSampled(gl);
-			captureFBO = new CaptureBuffer(gl, skyboxRes, skyboxRes);
-
-			// Post processing buffers
-			pingPongFBO = new QuadHDRBuffer(gl);
-			simpleFBO = new ResolveBuffer(gl);
+			_dirShadowFBO.Bind(gl);
+			FrameBuffer.Clear(gl, ClearBufferMask.DepthBufferBit, Vector3.One);
+			currentScene.DrawDirLightShadows(gl, _dirShadowShader, _dirShadowFBO.Depth);
 		}
 
 		/* This time using volume tiled forward
@@ -348,39 +317,39 @@ namespace HybridRenderingEngine
 				ImGui.Text("Up&Down: q e");
 				ImGui.Text("Reset Camera: r");
 				ImGui.Text("Exit: ESC");
-				ImGui.InputFloat3("Camera Pos", ref currentScene.mainCamera.position); // Camera controls
-				ImGui.SliderFloat("Movement speed", ref currentScene.mainCamera.camSpeed, 0.005f, 1f);
+				ImGui.InputFloat3("Camera Pos", ref currentScene.Cam.Position); // Camera controls
+				ImGui.SliderFloat("Movement speed", ref currentScene.Cam.CamSpeed, 0.005f, 1f);
 			}
 			// Making sure depth testing is enabled 
 			gl.Enable(EnableCap.DepthTest);
 			gl.DepthMask(true);
 
 			// Directional shadows
-			dirShadowFBO.bind(gl);
-			dirShadowFBO.clear(gl, ClearBufferMask.DepthBufferBit, Vector3.One);
-			currentScene.DrawDirLightShadows(gl, dirShadowShader, dirShadowFBO.depthBuffer);
+			_dirShadowFBO.Bind(gl);
+			FrameBuffer.Clear(gl, ClearBufferMask.DepthBufferBit, Vector3.One);
+			currentScene.DrawDirLightShadows(gl, _dirShadowShader, _dirShadowFBO.Depth);
 
 			// 1.1- Multisampled Depth pre-pass
-			multiSampledFBO.bind(gl);
-			multiSampledFBO.clear(gl, ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit, Vector3.Zero);
-			currentScene.DrawDepthPass(gl, depthPrePassShader);
+			_multiSampledFBO.Bind(gl);
+			FrameBuffer.Clear(gl, ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit, Vector3.Zero);
+			currentScene.DrawDepthPass(gl, _depthPrePassShader);
 
 			// 4-Light assignment
-			cullLightsCompShader.Use(gl);
-			cullLightsCompShader.SetMat4(gl, "viewMatrix", currentScene.mainCamera.viewMatrix);
+			_cullLightsCompShader.Use(gl);
+			_cullLightsCompShader.SetMat4(gl, "viewMatrix", currentScene.Cam.ViewMatrix);
 			ComputeShader.Dispatch(gl, 1, 1, 6);
 
 			// 5 - Actual shading;
 			// 5.1 - Forward render the scene in the multisampled FBO using the z buffer to discard early
 			gl.DepthFunc(DepthFunction.Lequal);
 			gl.DepthMask(false);
-			currentScene.DrawFullScene(gl, PBRClusteredShader, skyboxShader);
+			currentScene.DrawFullScene(gl, _pbrClusteredShader, _skyboxShader);
 
 			// 5.2 - resolve the from multisampled to normal resolution for postProcessing
-			multiSampledFBO.blitTo(gl, simpleFBO, ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+			_multiSampledFBO.BlitTo(gl, _simpleFBO, ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
 			// 6 - postprocessing, includes bloom, exposure mapping
-			PostProcess(gl, currentScene.mainCamera, start);
+			PostProcess(gl, currentScene.Cam, start);
 
 			// Rendering gui scope ends here cannot be done later because the whole frame
 			// is reset in the display buffer swap
@@ -395,52 +364,91 @@ namespace HybridRenderingEngine
 		{
 			if (ImGui.CollapsingHeader("Post-processing"))
 			{
-				ImGui.SliderInt("Blur", ref sceneCamera.blurAmount, 0, 10);
-				ImGui.SliderFloat("Exposure", ref sceneCamera.exposure, 0.1f, 5.0f);
+				ImGui.SliderInt("Blur", ref sceneCamera.BlurAmount, 0, 10);
+				ImGui.SliderFloat("Exposure", ref sceneCamera.Exposure, 0.1f, 5.0f);
 			}
 
 			// TODO:: should be a compute shader
-			pingPongFBO.bind(gl);
-			pingPongFBO.clear(gl, ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit, Vector3.Zero);
-			if (sceneCamera.blurAmount > 0)
+			_pingPongFBO.Bind(gl);
+			FrameBuffer.Clear(gl, ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit, Vector3.Zero);
+			if (sceneCamera.BlurAmount > 0)
 			{
 				// Filtering pixel rgb values > 1.0
-				highPassFilterShader.Use(gl);
-				canvas.Draw(gl, simpleFBO.texColorBuffer);
+				_highPassFilterShader.Use(gl);
+				_canvas.Render(gl, _simpleFBO.Color);
 			}
 
 			// Applying Gaussian blur in ping pong fashion
 			// TODO:: Also make it a compute shader
-			gaussianBlurShader.Use(gl);
-			for (int i = 0; i < sceneCamera.blurAmount; ++i)
+			_gaussianBlurShader.Use(gl);
+			for (int i = 0; i < sceneCamera.BlurAmount; ++i)
 			{
 				// Horizontal pass
-				gl.BindFramebuffer(FramebufferTarget.Framebuffer, simpleFBO.frameBufferID);
+				gl.BindFramebuffer(FramebufferTarget.Framebuffer, _simpleFBO.Id);
 				gl.DrawBuffer(DrawBufferMode.ColorAttachment1);
-				gaussianBlurShader.SetBool(gl, "horizontal", true);
-				canvas.Draw(gl, pingPongFBO.texColorBuffer);
+				_gaussianBlurShader.SetBool(gl, "horizontal", true);
+				_canvas.Render(gl, _pingPongFBO.Color);
 
 				// Vertical pass
-				gl.BindFramebuffer(FramebufferTarget.Framebuffer, pingPongFBO.frameBufferID);
-				gaussianBlurShader.SetBool(gl, "horizontal", false);
-				canvas.Draw(gl, simpleFBO.blurHighEnd);
+				gl.BindFramebuffer(FramebufferTarget.Framebuffer, _pingPongFBO.Id);
+				_gaussianBlurShader.SetBool(gl, "horizontal", false);
+				_canvas.Render(gl, _simpleFBO.BlurHighEnd);
 			}
 			// Setting back to default framebuffer (screen) and clearing
 			// No need for depth testing cause we're drawing to a flat quad
-			DisplayManager.Instance.Bind();
+			gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+			gl.ClearColor(0f, 0f, 0f, 1f);
+			gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
 			// Shader setup for postprocessing
-			screenSpaceShader.Use(gl);
+			_screenSpaceShader.Use(gl);
 
-			screenSpaceShader.SetInt(gl, "offset", (int)start);
-			screenSpaceShader.SetFloat(gl, "exposure", sceneCamera.exposure);
-			screenSpaceShader.SetInt(gl, "screenTexture", 0);
-			screenSpaceShader.SetInt(gl, "bloomBlur", 1);
-			screenSpaceShader.SetInt(gl, "computeTexture", 2);
+			_screenSpaceShader.SetInt(gl, "offset", (int)start);
+			_screenSpaceShader.SetFloat(gl, "exposure", sceneCamera.Exposure);
+			_screenSpaceShader.SetInt(gl, "screenTexture", 0);
+			_screenSpaceShader.SetInt(gl, "bloomBlur", 1);
+			_screenSpaceShader.SetInt(gl, "computeTexture", 2);
 
 			// Merging the blurred high pass image with the low pass values
 			// Also tonemapping and doing other post processing
-			canvas.Draw(gl, simpleFBO.texColorBuffer, pingPongFBO.texColorBuffer);
+			_canvas.Render(gl, _simpleFBO.Color, _pingPongFBO.Color);
+		}
+
+		public void Quit(GL gl)
+		{
+			_canvas.Delete(gl);
+
+			gl.DeleteBuffer(_aabbVolumeGridSSBO);
+			gl.DeleteBuffer(_screenToViewSSBO);
+			gl.DeleteBuffer(_lightSSBO);
+			gl.DeleteBuffer(_lightIndexListSSBO);
+			gl.DeleteBuffer(_lightGridSSBO);
+			gl.DeleteBuffer(_lightIndexGlobalCountSSBO);
+
+			_simpleFBO.Delete(gl);
+			_captureFBO.Delete(gl);
+			_pingPongFBO.Delete(gl);
+			_dirShadowFBO.Delete(gl);
+			_multiSampledFBO.Delete(gl);
+			foreach (PointShadowBuffer fbo in _pointLightShadowFBOs)
+			{
+				fbo.Delete(gl);
+			}
+
+			_buildAABBGridCompShader.Delete(gl);
+			_cullLightsCompShader.Delete(gl);
+			_fillCubeMapShader.Delete(gl);
+			_convolveCubeMap.Delete(gl);
+			_preFilterSpecShader.Delete(gl);
+			_integrateBRDFShader.Delete(gl);
+			_depthPrePassShader.Delete(gl);
+			_pbrClusteredShader.Delete(gl);
+			_skyboxShader.Delete(gl);
+			_screenSpaceShader.Delete(gl);
+			_dirShadowShader.Delete(gl);
+			_pointShadowShader.Delete(gl);
+			_highPassFilterShader.Delete(gl);
+			_gaussianBlurShader.Delete(gl);
 		}
 	}
 }

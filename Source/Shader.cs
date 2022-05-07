@@ -10,8 +10,7 @@ namespace HybridRenderingEngine
 	{
 		private const string SHADER_PATH = MyUtils.ASSET_PATH + @"/Shaders/";
 
-		// Shader program ID for referencing
-		public uint ID;
+		public uint Id;
 
 		protected Shader()
 		{
@@ -60,19 +59,19 @@ namespace HybridRenderingEngine
 			}
 
 			// Linking shaders
-			ID = gl.CreateProgram();
-			gl.AttachShader(ID, vertexShader);
-			gl.AttachShader(ID, fragmentShader);
+			Id = gl.CreateProgram();
+			gl.AttachShader(Id, vertexShader);
+			gl.AttachShader(Id, fragmentShader);
 			if (gShaderOn)
 			{
-				gl.AttachShader(ID, geometryShader);
+				gl.AttachShader(Id, geometryShader);
 			}
-			gl.LinkProgram(ID);
+			gl.LinkProgram(Id);
 
-			gl.GetProgram(ID, ProgramPropertyARB.LinkStatus, out success);
+			gl.GetProgram(Id, ProgramPropertyARB.LinkStatus, out success);
 			if (success == 0)
 			{
-				throw new Exception("Shader Linking failed: " + gl.GetProgramInfoLog(ID));
+				throw new Exception("Shader Linking failed: " + gl.GetProgramInfoLog(Id));
 			}
 
 			// Deleting shaders
@@ -87,34 +86,34 @@ namespace HybridRenderingEngine
 		// Indicate to openGL that this is the GPU program that is going to be run
 		public void Use(GL gl)
 		{
-			gl.UseProgram(ID);
+			gl.UseProgram(Id);
 		}
 
 		// Setting uniforms within the shader, share functionality with compute
 		public void SetBool(GL gl, string name, bool value)
 		{
-			gl.Uniform1(gl.GetUniformLocation(ID, name), value ? 1 : 0);
+			gl.Uniform1(gl.GetUniformLocation(Id, name), value ? 1 : 0);
 		}
 		public void SetInt(GL gl, string name, int value)
 		{
-			gl.Uniform1(gl.GetUniformLocation(ID, name), value);
+			gl.Uniform1(gl.GetUniformLocation(Id, name), value);
 		}
 		public void SetFloat(GL gl, string name, float value)
 		{
-			gl.Uniform1(gl.GetUniformLocation(ID, name), value);
+			gl.Uniform1(gl.GetUniformLocation(Id, name), value);
 		}
 		public unsafe void SetMat4(GL gl, string name, Matrix4x4 mat)
 		{
-			gl.UniformMatrix4(gl.GetUniformLocation(ID, name), 1, false, (float*)&mat);
+			gl.UniformMatrix4(gl.GetUniformLocation(Id, name), 1, false, (float*)&mat);
 		}
 		public unsafe void SetVec3(GL gl, string name, Vector3 vec)
 		{
-			gl.Uniform3(gl.GetUniformLocation(ID, name), 1, (float*)&vec);
+			gl.Uniform3(gl.GetUniformLocation(Id, name), 1, (float*)&vec);
 		}
 
 		public void Delete(GL gl)
 		{
-			gl.DeleteProgram(ID);
+			gl.DeleteProgram(Id);
 		}
 	}
 	internal sealed class ComputeShader : Shader
@@ -134,14 +133,14 @@ namespace HybridRenderingEngine
 			}
 
 			// Linking shaders
-			ID = gl.CreateProgram();
-			gl.AttachShader(ID, computeShader);
-			gl.LinkProgram(ID);
+			Id = gl.CreateProgram();
+			gl.AttachShader(Id, computeShader);
+			gl.LinkProgram(Id);
 
-			gl.GetProgram(ID, ProgramPropertyARB.LinkStatus, out success);
+			gl.GetProgram(Id, ProgramPropertyARB.LinkStatus, out success);
 			if (success == 0)
 			{
-				throw new Exception("Shader Linking failed: " + gl.GetProgramInfoLog(ID));
+				throw new Exception("Shader Linking failed: " + gl.GetProgramInfoLog(Id));
 			}
 
 			// Deleting shaders

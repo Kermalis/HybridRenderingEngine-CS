@@ -19,8 +19,8 @@ namespace HybridRenderingEngine
 		public GL OpenGL;
 		public Assimp Assimp;
 
-		private Window* mWindow;
-		private void* mContext;
+		private Window* _window;
+		private void* _context;
 
 		// Initialization sequence of all rendering related libraries such as SDL, Silk.NET, and ImGUI.
 		public DisplayManager()
@@ -35,51 +35,6 @@ namespace HybridRenderingEngine
 			CreateImGuiContext();
 		}
 
-		// Closes down all contexts and subsystems in the reverse initialization order
-		public void Quit()
-		{
-			ImGui.EndFrame();
-			ImGui_ImplOpenGL3.Shutdown();
-			ImGui_ImplSDL2.Shutdown();
-			ImGui.DestroyContext();
-
-			SDL.GLDeleteContext(mContext);
-
-			SDL.DestroyWindow(mWindow);
-
-			SDL.Quit();
-
-			Assimp.Dispose();
-		}
-
-		// Swaps the finished drawn buffer with the window bufffer.
-		// Also initializes a new frame for the gui renderer.
-		public void SwapDisplayBuffer()
-		{
-			// Now that all data has been added to the frame we overlay the GUI onto it
-			// Just before frame swap
-			ImGui.EndFrame();
-			ImGui.Render();
-			ImGui_ImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
-
-			// Actual buffer swap
-			SDL.GLSwapWindow(mWindow);
-
-			// Signaling beginning of frame to gui
-			ImGui_ImplOpenGL3.NewFrame();
-			ImGui_ImplSDL2.NewFrame();
-			ImGui.NewFrame();
-		}
-
-		// Binding the display framebuffer for drawing and clearing it before rendering
-		public void Bind()
-		{
-			OpenGL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-			OpenGL.ClearColor(0f, 0f, 0f, 1f);
-			OpenGL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-		}
-
-		// Entry point to SDL
 		private void StartSDL()
 		{
 			SDL = Sdl.GetApi();
@@ -89,7 +44,6 @@ namespace HybridRenderingEngine
 			}
 		}
 
-		// Loads the openGL library and sets the attributes of the future OpenGL context 
 		private void StartOpenGL()
 		{
 			if (SDL.GLLoadLibrary((byte*)null) != 0)
@@ -111,28 +65,20 @@ namespace HybridRenderingEngine
 			SDL.GLSetAttribute(GLattr.GLFramebufferSrgbCapable, 1);
 		}
 
-		// Initializes SDL2 window object with the given width and height and marks it as an openGL enabled window;
 		private void CreateWindow()
 		{
-			mWindow = SDL.CreateWindow("Hybrid Renderering Engine", Sdl.WindowposUndefined, Sdl.WindowposUndefined,
+			_window = SDL.CreateWindow("Hybrid Renderering Engine", Sdl.WindowposUndefined, Sdl.WindowposUndefined,
 				SCREEN_WIDTH, SCREEN_HEIGHT, (uint)WindowFlags.WindowOpengl);
-			if (mWindow is null)
+			if (_window is null)
 			{
 				throw new Exception("Could not create window. Error: " + SDL.GetErrorS());
 			}
 		}
 
-		/*
-		1. Creates the OpenGL context using SDL
-		2. Inits Silk.NET functionality
-		3. Prints some vendor information
-		4. Sets some more GL context stuff
-		5. Sets the glViewport to be the same size as the SDL window
-		*/
 		private void CreateGLContext()
 		{
-			mContext = SDL.GLCreateContext(mWindow);
-			if (mContext is null)
+			_context = SDL.GLCreateContext(_window);
+			if (_context is null)
 			{
 				throw new Exception("Could not create OpenGL context. Error: " + SDL.GetErrorS());
 			}
@@ -151,24 +97,21 @@ namespace HybridRenderingEngine
 			OpenGL.Enable(EnableCap.FramebufferSrgb);
 			OpenGL.Enable(EnableCap.TextureCubeMapSeamless);
 
-			// Setting the glViewport to be the size of the SDL window
 			int w, h;
-			SDL.GetWindowSize(mWindow, &w, &h);
+			SDL.GetWindowSize(_window, &w, &h);
 			OpenGL.Viewport(0, 0, (uint)w, (uint)h);
 		}
 
-		// Inits our GUI library and calls all init functions related to configuring it for use
-		// in OpenGL3+ and SDL2
 		private void CreateImGuiContext()
 		{
-			IntPtr mGuiContext = ImGui.CreateContext();
-			if (mGuiContext == IntPtr.Zero)
+			IntPtr ctx = ImGui.CreateContext();
+			if (ctx == IntPtr.Zero)
 			{
 				throw new Exception("Could not load IMGUI context!");
 			}
 
 			// Init and configure for OpenGL and SDL
-			ImGui_ImplSDL2.Init(mWindow, null);
+			ImGui_ImplSDL2.Init(_window, null);
 			ImGui_ImplOpenGL3.Init();
 
 			// Imgui first frame setup
@@ -176,6 +119,40 @@ namespace HybridRenderingEngine
 			ImGui_ImplOpenGL3.NewFrame();
 			ImGui_ImplSDL2.NewFrame();
 			ImGui.NewFrame();
+		}
+
+		// Swaps the finished drawn buffer with the window bufffer.
+		// Also initializes a new frame for the gui renderer.
+		public void SwapDisplayBuffer()
+		{
+			// Now that all data has been added to the frame we overlay the GUI onto it
+			// Just before frame swap
+			ImGui.EndFrame();
+			ImGui.Render();
+			ImGui_ImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
+
+			// Actual buffer swap
+			SDL.GLSwapWindow(_window);
+
+			// Signaling beginning of frame to gui
+			ImGui_ImplOpenGL3.NewFrame();
+			ImGui_ImplSDL2.NewFrame();
+			ImGui.NewFrame();
+		}
+
+		// Closes down all contexts and subsystems in the reverse initialization order
+		public void Quit()
+		{
+			ImGui.EndFrame();
+			ImGui_ImplOpenGL3.Shutdown();
+			ImGui_ImplSDL2.Shutdown();
+			ImGui.DestroyContext();
+
+			SDL.GLDeleteContext(_context);
+			SDL.DestroyWindow(_window);
+			SDL.Quit();
+
+			Assimp.Dispose();
 		}
 	}
 }

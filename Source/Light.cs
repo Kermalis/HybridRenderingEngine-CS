@@ -4,32 +4,30 @@ namespace HybridRenderingEngine
 {
 	internal abstract class BaseLight
 	{
-		public Vector3 color = Vector3.One;
-		public Matrix4x4 shadowProjectionMat;
+		public Vector3 Color = Vector3.One;
+		public Matrix4x4 ShadowProjectionMat;
 
-		public bool changed;
+		public float Strength = 1f;
+		public float ZNear = 1f;
+		public float ZFar = 2000f;
 
-		public float strength = 1f;
-		public float zNear = 1f;
-		public float zFar = 2000f;
-
-		public uint shadowRes = 1024;
-		public uint depthMapTextureID;
+		public uint ShadowRes = 1024;
+		public uint DepthMapTextureID;
 	}
 	internal sealed class DirectionalLight : BaseLight
 	{
-		public Vector3 direction = new(-1f);
+		public Vector3 Direction = new(-1f);
 
-		public Matrix4x4 lightView;
-		public Matrix4x4 lightSpaceMatrix;
+		public Matrix4x4 LightView;
+		public Matrix4x4 LightSpaceMatrix;
 
-		public float distance;
-		public float orthoBoxSize;
+		public float Distance;
+		public float OrthoBoxSize;
 	}
 	internal sealed class PointLight : BaseLight
 	{
-		public Vector3 position;
-		public Matrix4x4[] lookAtPerFace = new Matrix4x4[6];
+		public Vector3 Position;
+		public Matrix4x4[] LookAtPerFace = new Matrix4x4[6];
 	}
 
 	// Currently only used in the generation of SSBO's for light culling and rendering
@@ -39,11 +37,11 @@ namespace HybridRenderingEngine
 	// compute shaders and application based calculations for the matrices.
 	internal struct GPULight
 	{
-		public Vector4 position;
-		public Vector4 color;
-		public uint enabled;
-		public float intensity;
-		public float range;
-		public float padding;
+		public Vector4 Position;
+		public Vector4 Color;
+		public uint IsEnabled;
+		public float Intensity;
+		public float Range;
+		public float Padding;
 	}
 }

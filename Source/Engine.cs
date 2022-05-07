@@ -14,13 +14,13 @@ namespace HybridRenderingEngine
 			_ = new DisplayManager();
 			GL gl = DisplayManager.Instance.OpenGL;
 
-			// Inits scene manager and loads default scene
-			_ = new SceneManager(gl);
+			// Load default scene
+			_ = new Scene(gl, "sponza");
 
 			// Initializes rendererer manager, which is in charge of high level
 			// rendering tasks (render queue, locating render scene etc)
 			// It gets passed references to the other major subsystems for use later
-			_ = new RenderManager(gl, SceneManager.Instance.GetCurrentScene());
+			_ = new RenderManager(gl, Scene.Instance);
 
 			// Want to keep track of how much time the whole loading process took
 			int deltaT = Environment.TickCount - start;
@@ -49,11 +49,11 @@ namespace HybridRenderingEngine
 				// Handle all user input
 				// Any changes to the scene are directly sent to the respective objects in
 				// the scene class. Also sets exit flag based on user input.
-				Scene s = SceneManager.Instance.GetCurrentScene();
-				InputManager.ProcessInput(s.mainCamera, ref done, deltaT);
+				Scene s = Scene.Instance;
+				InputManager.ProcessInput(s.Cam, ref done, deltaT);
 
 				// Update all models, camera and lighting in the current scene
-				SceneManager.Instance.Update(deltaT);
+				s.Update(deltaT);
 
 				RenderManager.Instance.Render(DisplayManager.Instance.OpenGL, s, start);
 
@@ -77,7 +77,7 @@ namespace HybridRenderingEngine
 			GL gl = DisplayManager.Instance.OpenGL;
 			RenderManager.Instance.Quit(gl);
 
-			SceneManager.Instance.Quit(gl);
+			Scene.Instance.Delete(gl);
 
 			DisplayManager.Instance.Quit();
 		}

@@ -1,92 +1,71 @@
 ﻿using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using System.Collections.Generic;
-using System.IO;
 using System.Numerics;
 
 namespace HybridRenderingEngine
 {
 	internal struct TransformParameters
 	{
-		public Vector3 translation;
-		public float angle;
-		public Vector3 rotationAxis;
-		public Vector3 scaling;
-
-		public TransformParameters()
-		{
-			scaling = Vector3.One;
-			translation = default;
-			angle = default;
-			rotationAxis = default;
-		}
+		public Vector3 Translation;
+		public float Angle;
+		public Vector3 RotationAxis;
+		public Vector3 Scale;
 	}
 
 	internal sealed unsafe class Model
 	{
 		// Object to world space matrix
-		public bool IBL;
-		public Matrix4x4 modelMatrix;
-		public List<Mesh> meshes; // Does it need to be a vector after initialization?
+		private readonly bool _useIBL;
+		public Matrix4x4 Matrix;
+		private readonly List<Mesh> _meshes;
 
 		// To avoid textures being loaded from disk more than once they are indexed into a dictionary
-		public Dictionary<string, Texture> textureAtlas;
-		public string directory, fileExtension;
+		private readonly Dictionary<string, Texture> _textureAtlas;
+		private string _dir;
 
 		public Model(GL gl, Assimp ass, string meshPath, in TransformParameters initParameters, bool ibl)
 		{
-			textureAtlas = new Dictionary<string, Texture>();
-			meshes = new List<Mesh>();
+			_textureAtlas = new Dictionary<string, Texture>();
+			_meshes = new List<Mesh>();
 
-			IBL = ibl;
-			loadModel(gl, ass, meshPath);
-			modelMatrix = Matrix4x4.CreateScale(initParameters.scaling)
-				* Matrix4x4.CreateFromAxisAngle(initParameters.rotationAxis, initParameters.angle)
-				* Matrix4x4.CreateTranslation(initParameters.translation); // KERM
+			_useIBL = ibl;
+			LoadModel(gl, ass, meshPath);
+			Matrix = Matrix4x4.CreateScale(initParameters.Scale)
+				* Matrix4x4.CreateFromAxisAngle(initParameters.RotationAxis, initParameters.Angle)
+				* Matrix4x4.CreateTranslation(initParameters.Translation); // KERM
 		}
 
 		// We use assimp to load all our mesh files this
-		public void loadModel(GL gl, Assimp ass, string path)
+		private void LoadModel(GL gl, Assimp ass, string path)
 		{
 			Silk.NET.Assimp.Scene *scene = ass.ImportFile(path,
 				(uint)(PostProcessSteps.Triangulate | PostProcessSteps.OptimizeMeshes | PostProcessSteps.CalculateTangentSpace | PostProcessSteps.FlipUVs));
 
 			// useful for texture indexing later
-			fileExtension = Path.GetExtension(path);
-			directory = path.Substring(0, path.LastIndexOf('/'));
-			directory += "/";
+			_dir = path.Substring(0, path.LastIndexOf('/'));
+			_dir += "/";
 
 			// begin recursive processing of loaded model
-			processNode(gl, ass, scene->MRootNode, scene);
+			ProcessNode(gl, ass, scene->MRootNode, scene);
 
 			ass.FreeScene(scene);
 		}
 
-		// The model currently is just a vessel for the meshes of the scene,
-		// In a future revision this will probably change
-		public void draw(GL gl, Shader shader, bool textured)
-		{
-			shader.SetBool(gl, "IBL", IBL);
-			for (int i = 0; i < meshes.Count; ++i)
-			{
-				meshes[i].Render(gl, shader, textured);
-			}
-		}
-
 		// Basic ASSIMP scene tree traversal, taken from the docs
-		public void processNode(GL gl, Assimp ass, Node* node, Silk.NET.Assimp.Scene* scene)
+		private void ProcessNode(GL gl, Assimp ass, Node* node, Silk.NET.Assimp.Scene* scene)
 		{
 			// Process all the node meshes
 			for (uint i = 0; i < node->MNumMeshes; i++)
 			{
 				Silk.NET.Assimp.Mesh * mesh = scene->MMeshes[node->MMeshes[i]];
-				meshes.Add(processMesh(gl, ass, mesh, scene));
+				_meshes.Add(ProcessMesh(gl, ass, mesh, scene));
 			}
 
 			// process all the node children recursively
 			for (uint i = 0; i < node->MNumChildren; i++)
 			{
-				processNode(gl, ass, node->MChildren[i], scene);
+				ProcessNode(gl, ass, node->MChildren[i], scene);
 			}
 		}
 
@@ -97,7 +76,7 @@ namespace HybridRenderingEngine
 		 * 
 		 * TODO::Refactoring target?
 		*/
-		public Mesh processMesh(GL gl, Assimp ass, Silk.NET.Assimp.Mesh* mesh, Silk.NET.Assimp.Scene* scene)
+		private Mesh ProcessMesh(GL gl, Assimp ass, Silk.NET.Assimp.Mesh* mesh, Silk.NET.Assimp.Scene* scene)
 		{
 			var vertices = new List<Vertex>();
 			var indices = new List<uint>();
@@ -114,25 +93,25 @@ namespace HybridRenderingEngine
 				vector.X = mesh->MVertices[i].X;
 				vector.Y = mesh->MVertices[i].Y;
 				vector.Z = mesh->MVertices[i].Z;
-				vertex.position = vector;
+				vertex.Position = vector;
 
 				// Process tangent
 				vector.X = mesh->MTangents[i].X;
 				vector.Y = mesh->MTangents[i].Y;
 				vector.Z = mesh->MTangents[i].Z;
-				vertex.tangent = vector;
+				vertex.Tangent = vector;
 
 				// Process biTangent
 				vector.X = mesh->MBitangents[i].X;
 				vector.Y = mesh->MBitangents[i].Y;
 				vector.Z = mesh->MBitangents[i].Z;
-				vertex.biTangent = vector;
+				vertex.BiTangent = vector;
 
 				// Process normals
 				vector.X = mesh->MNormals[i].X;
 				vector.Y = mesh->MNormals[i].Y;
 				vector.Z = mesh->MNormals[i].Z;
-				vertex.normal = vector;
+				vertex.Normal = vector;
 
 				// Process texture coords
 				if (mesh->MTextureCoords[0] is not null)
@@ -140,11 +119,11 @@ namespace HybridRenderingEngine
 					Vector2 vec;
 					vec.X = mesh->MTextureCoords[0][i].X;
 					vec.Y = mesh->MTextureCoords[0][i].Y;
-					vertex.texCoords = vec;
+					vertex.TexCoords = vec;
 				}
 				else
 				{
-					vertex.texCoords = Vector2.Zero;
+					vertex.TexCoords = Vector2.Zero;
 				}
 
 				vertices.Add(vertex);
@@ -162,7 +141,7 @@ namespace HybridRenderingEngine
 
 			// Process material and texture info
 			Material* material = scene->MMaterials[mesh->MMaterialIndex];
-			textures = processTextures(gl, ass, material);
+			textures = ProcessTextures(gl, ass, material);
 
 			return new Mesh(gl, vertices.ToArray(), indices.ToArray(), textures.ToArray());
 		}
@@ -170,9 +149,9 @@ namespace HybridRenderingEngine
 		/*
 		 * FIXES::
 		 * 1. Have more than one texture per type
-		 * 2. Make this it's own material class that takes care of it properly
+		 * 2. Make this its own material class that takes care of it properly
 		*/
-		public List<uint> processTextures(GL gl, Assimp ass, Material* material)
+		private List<uint> ProcessTextures(GL gl, Assimp ass, Material* material)
 		{
 			var textures = new List<uint>();
 
@@ -180,7 +159,7 @@ namespace HybridRenderingEngine
 			// Checkout assimp docs on texture types
 			for (Silk.NET.Assimp.TextureType type = Silk.NET.Assimp.TextureType.TextureTypeNone; type <= Silk.NET.Assimp.TextureType.TextureTypeUnknown; type++)
 			{
-				string fullTexturePath = directory;
+				string fullTexturePath = _dir;
 
 				// If there are any textures of the given type in the material
 				if (ass.GetMaterialTextureCount(material, type) > 0)
@@ -191,15 +170,15 @@ namespace HybridRenderingEngine
 					fullTexturePath += texturePath;
 
 					// If this texture has not been added to the atlas yet we load it
-					if (!textureAtlas.TryGetValue(fullTexturePath, out Texture texture))
+					if (!_textureAtlas.TryGetValue(fullTexturePath, out Texture texture))
 					{
 						texture = new Texture();
 						texture.LoadTexture(gl, fullTexturePath, false);
-						textureAtlas.Add(fullTexturePath, texture);
+						_textureAtlas.Add(fullTexturePath, texture);
 					}
 
 					// We add it to the texture index array of loaded texture for a given mesh
-					textures.Add(texture.textureID);
+					textures.Add(texture.Id);
 				}
 				else
 				{
@@ -220,9 +199,20 @@ namespace HybridRenderingEngine
 			return textures;
 		}
 
+		// The model currently is just a vessel for the meshes of the scene,
+		// In a future revision this will probably change
+		public void Render(GL gl, Shader shader, bool textured)
+		{
+			shader.SetBool(gl, "IBL", _useIBL);
+			for (int i = 0; i < _meshes.Count; ++i)
+			{
+				_meshes[i].Render(gl, shader, textured);
+			}
+		}
+
 		public void Delete(GL gl)
 		{
-			foreach (Mesh m in meshes)
+			foreach (Mesh m in _meshes)
 			{
 				m.Delete(gl);
 			}

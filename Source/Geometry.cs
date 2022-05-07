@@ -1,17 +1,12 @@
-﻿using HybridRenderingEngine.Utils;
-using System;
-
-namespace HybridRenderingEngine
+﻿namespace HybridRenderingEngine
 {
 	internal struct Frustum
 	{
-		public float fov, nearPlane, farPlane, AR, nearH, nearW;
-
-		public void setCamInternals()
-		{
-			float tanHalfFOV = MathF.Tan(fov / 2f * MyUtils.DEG_TO_RAD);
-			nearH = nearPlane * tanHalfFOV; // Half of the frustrum near plane height
-			nearW = nearH * AR;
-		}
+		public float FOV;
+		public float NearPlane;
+		public float FarPlane;
+		public float AspectRatio;
+		public float NearH;
+		public float NearW;
 	}
 }

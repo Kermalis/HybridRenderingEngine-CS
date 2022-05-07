@@ -26,11 +26,12 @@ namespace HybridRenderingEngine
 					done = true;
 					return;
 				}
+
 				// Next, check if imGUI wants to use the mouse or keyboard
-				else if (io.WantCaptureKeyboard || io.WantCaptureMouse)
+				if (io.WantCaptureKeyboard || io.WantCaptureMouse)
 				{
 					// Stops all camera movement if you are interacting with the GUI
-					sceneCamera.activeMoveStates.Clear();
+					sceneCamera.ActiveMoveStates.Clear();
 					ImGui_ImplSDL2.ProcessEvent(ref ev);
 				}
 				// Handle any other relevant input data
@@ -49,7 +50,7 @@ namespace HybridRenderingEngine
 			// Instead of actually updating the camera position for each key call we update a 
 			// container that keeps track of which move state the camera is in. This state is only
 			// changed on keydown or key up events, freeing it from the keyboard polling rate dependency.
-			bool isDown  = ev.Type == (uint)EventType.Keydown;
+			bool isDown = ev.Type == (uint)EventType.Keydown;
 			bool wasDown = ev.Type == (uint)EventType.Keyup;
 
 			if (isDown || wasDown)
@@ -57,59 +58,93 @@ namespace HybridRenderingEngine
 				switch ((KeyCode)ev.Key.Keysym.Sym)
 				{
 					case KeyCode.KEscape:
+					{
 						if (isDown)
+						{
 							done = true;
+						}
 						return;
-
+					}
 					case KeyCode.KR:
+					{
 						if (isDown)
+						{
 							sceneCamera.ResetCamera();
+						}
 						break;
-
+					}
 					case KeyCode.KW:
+					{
 						if (isDown)
-							sceneCamera.activeMoveStates.Add('w');
-						if (wasDown)
-							sceneCamera.activeMoveStates.Remove('w');
+						{
+							sceneCamera.ActiveMoveStates.Add('w');
+						}
+						else if (wasDown)
+						{
+							sceneCamera.ActiveMoveStates.Remove('w');
+						}
 						break;
-
+					}
 					case KeyCode.KS:
+					{
 						if (isDown)
-							sceneCamera.activeMoveStates.Add('s');
-						if (wasDown)
-							sceneCamera.activeMoveStates.Remove('s');
+						{
+							sceneCamera.ActiveMoveStates.Add('s');
+						}
+						else if (wasDown)
+						{
+							sceneCamera.ActiveMoveStates.Remove('s');
+						}
 						break;
-
+					}
 					case KeyCode.KA:
+					{
 						if (isDown)
-							sceneCamera.activeMoveStates.Add('a');
-						if (wasDown)
-							sceneCamera.activeMoveStates.Remove('a');
+						{
+							sceneCamera.ActiveMoveStates.Add('a');
+						}
+						else if (wasDown)
+						{
+							sceneCamera.ActiveMoveStates.Remove('a');
+						}
 						break;
-
+					}
 					case KeyCode.KD:
+					{
 						if (isDown)
-							sceneCamera.activeMoveStates.Add('d');
-						if (wasDown)
-							sceneCamera.activeMoveStates.Remove('d');
+						{
+							sceneCamera.ActiveMoveStates.Add('d');
+						}
+						else if (wasDown)
+						{
+							sceneCamera.ActiveMoveStates.Remove('d');
+						}
 						break;
-
+					}
 					case KeyCode.KQ:
+					{
 						if (isDown)
-							sceneCamera.activeMoveStates.Add('q');
-						if (wasDown)
-							sceneCamera.activeMoveStates.Remove('q');
+						{
+							sceneCamera.ActiveMoveStates.Add('q');
+						}
+						else if (wasDown)
+						{
+							sceneCamera.ActiveMoveStates.Remove('q');
+						}
 						break;
-
+					}
 					case KeyCode.KE:
+					{
 						if (isDown)
-							sceneCamera.activeMoveStates.Add('e');
-						if (wasDown)
-							sceneCamera.activeMoveStates.Remove('e');
+						{
+							sceneCamera.ActiveMoveStates.Add('e');
+						}
+						else if (wasDown)
+						{
+							sceneCamera.ActiveMoveStates.Remove('e');
+						}
 						break;
-
-					default:
-						break;
+					}
 				}
 			}
 			// Handling Mouse Motion
@@ -121,27 +156,27 @@ namespace HybridRenderingEngine
 					// While left button is pressed change mouse to relative mode
 					DisplayManager.Instance.SDL.SetRelativeMouseMode(SdlBool.True);
 
-					float sens = sceneCamera.mouseSens;
+					float sens = sceneCamera.MouseSens;
 					float xOffset = ev.Motion.Xrel * sens;
 					float yOffset = -ev.Motion.Yrel * sens;
 
 					// To reduce precision issues we keep the yaw constrained to 360 degrees
-					sceneCamera.yaw = (sceneCamera.yaw + xOffset) % 360f;
-					sceneCamera.pitch += yOffset;
+					sceneCamera.Yaw = (sceneCamera.Yaw + xOffset) % 360f;
+					sceneCamera.Pitch += yOffset;
 
 					// Limiting the range of the pitch to avoid flips
-					if (sceneCamera.pitch > 89f)
+					if (sceneCamera.Pitch > 89f)
 					{
-						sceneCamera.pitch = 89f;
+						sceneCamera.Pitch = 89f;
 					}
-					else if (sceneCamera.pitch < -89f)
+					else if (sceneCamera.Pitch < -89f)
 					{
-						sceneCamera.pitch = -89f;
+						sceneCamera.Pitch = -89f;
 					}
 				}
 				else
 				{
-					// Once the left butto is not pressed set the mouse to normal mode
+					// Once the left button is not pressed set the mouse to normal mode
 					DisplayManager.Instance.SDL.SetRelativeMouseMode(SdlBool.False);
 				}
 			}

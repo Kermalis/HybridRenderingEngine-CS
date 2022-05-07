@@ -6,47 +6,47 @@ namespace HybridRenderingEngine
 {
 	internal abstract class FrameBuffer
 	{
-		public uint width, height;
-		public uint frameBufferID;
-		public uint texColorBuffer, depthBuffer;
+		protected uint _width;
+		protected uint _height;
+		public uint Id;
+		public uint Color;
+		public uint Depth;
 
-		public void bind(GL gl)
+		public void DefaultInit(GL gl)
 		{
-			gl.Viewport(0, 0, width, height);
-			gl.BindFramebuffer(FramebufferTarget.Framebuffer, frameBufferID);
+			_width = DisplayManager.SCREEN_WIDTH;
+			_height = DisplayManager.SCREEN_HEIGHT;
+			Id = gl.GenFramebuffer();
+			gl.BindFramebuffer(FramebufferTarget.Framebuffer, Id);
 		}
 
-		// TODO:: This currently clears whatever framebuffer is bound, not the framebuffer that calls this function
-		public void clear(GL gl, ClearBufferMask clearTarget, in Vector3 clearColor)
+		public void Bind(GL gl)
+		{
+			gl.Viewport(0, 0, _width, _height);
+			gl.BindFramebuffer(FramebufferTarget.Framebuffer, Id);
+		}
+
+		public static void Clear(GL gl, ClearBufferMask clearTarget, in Vector3 clearColor)
 		{
 			gl.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, 1f);
 			gl.Clear(clearTarget);
 		}
 
 		// Currently allows only for blit to one texture, not mrt blitting
-		public void blitTo(GL gl, FrameBuffer FBO, ClearBufferMask mask)
+		public void BlitTo(GL gl, FrameBuffer FBO, ClearBufferMask mask)
 		{
-			gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, frameBufferID);
-			gl.BindFramebuffer(FramebufferTarget.DrawFramebuffer, FBO.frameBufferID);
+			gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, Id);
+			gl.BindFramebuffer(FramebufferTarget.DrawFramebuffer, FBO.Id);
 			if ((mask & ClearBufferMask.ColorBufferBit) == ClearBufferMask.ColorBufferBit)
 			{
 				gl.DrawBuffer(DrawBufferMode.ColorAttachment0);
 			}
-			gl.BlitFramebuffer(0, 0, (int)width, (int)height, 0, 0, (int)width, (int)height, mask, BlitFramebufferFilter.Nearest);
-			gl.BindFramebuffer(FramebufferTarget.DrawFramebuffer, frameBufferID);
-		}
-
-		// TODO:: include cases with width and height
-		public void defaultInit(GL gl)
-		{
-			width = DisplayManager.SCREEN_WIDTH;
-			height = DisplayManager.SCREEN_HEIGHT;
-			frameBufferID = gl.GenFramebuffer();
-			gl.BindFramebuffer(FramebufferTarget.Framebuffer, frameBufferID);
+			gl.BlitFramebuffer(0, 0, (int)_width, (int)_height, 0, 0, (int)_width, (int)_height, mask, BlitFramebufferFilter.Nearest);
+			gl.BindFramebuffer(FramebufferTarget.DrawFramebuffer, Id);
 		}
 
 		// Check if frame buffer initialized correctly
-		protected void checkForCompleteness(GL gl)
+		protected static void CheckForCompleteness(GL gl)
 		{
 			if (gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != GLEnum.FramebufferComplete)
 			{
@@ -57,9 +57,9 @@ namespace HybridRenderingEngine
 
 		public virtual void Delete(GL gl)
 		{
-			gl.DeleteFramebuffer(frameBufferID);
-			gl.DeleteTexture(texColorBuffer);
-			gl.DeleteTexture(depthBuffer);
+			gl.DeleteFramebuffer(Id);
+			gl.DeleteTexture(Color);
+			gl.DeleteTexture(Depth);
 		}
 	}
 
@@ -73,12 +73,12 @@ namespace HybridRenderingEngine
 	{
 		public FrameBufferMultiSampled(GL gl)
 		{
-			defaultInit(gl);
+			DefaultInit(gl);
 
-			texColorBuffer = Texture.GenTextureDirectlyOnGPU(gl, width, height, 0, TextureType.MULT_2D_HDR_COL);
-			depthBuffer = Texture.GenTextureDirectlyOnGPU(gl, width, height, 0, TextureType.MULT_2D_HDR_DEP);
+			Color = Texture.GenTextureDirectlyOnGPU(gl, _width, _height, 0, TextureType.MULT_2D_HDR_COL);
+			Depth = Texture.GenTextureDirectlyOnGPU(gl, _width, _height, 0, TextureType.MULT_2D_HDR_DEP);
 
-			checkForCompleteness(gl);
+			CheckForCompleteness(gl);
 		}
 	}
 	/*
@@ -90,17 +90,17 @@ namespace HybridRenderingEngine
 	*/
 	internal sealed class ResolveBuffer : FrameBuffer
 	{
-		public uint blurHighEnd;
+		public uint BlurHighEnd;
 
 		public ResolveBuffer(GL gl)
 		{
-			defaultInit(gl);
+			DefaultInit(gl);
 
-			texColorBuffer = Texture.GenTextureDirectlyOnGPU(gl, width, height, 0, TextureType.SING_2D_HDR_COL);
-			blurHighEnd = Texture.GenTextureDirectlyOnGPU(gl, width, height, 1, TextureType.SING_2D_HDR_COL_CLAMP);
-			depthBuffer = Texture.GenTextureDirectlyOnGPU(gl, width, height, 0, TextureType.SING_2D_HDR_DEP);
+			Color = Texture.GenTextureDirectlyOnGPU(gl, _width, _height, 0, TextureType.SING_2D_HDR_COL);
+			BlurHighEnd = Texture.GenTextureDirectlyOnGPU(gl, _width, _height, 1, TextureType.SING_2D_HDR_COL_CLAMP);
+			Depth = Texture.GenTextureDirectlyOnGPU(gl, _width, _height, 0, TextureType.SING_2D_HDR_DEP);
 
-			checkForCompleteness(gl);
+			CheckForCompleteness(gl);
 		}
 	}
 	/*
@@ -112,11 +112,11 @@ namespace HybridRenderingEngine
 	{
 		public QuadHDRBuffer(GL gl)
 		{
-			defaultInit(gl);
+			DefaultInit(gl);
 
-			texColorBuffer = Texture.GenTextureDirectlyOnGPU(gl, width, height, 0, TextureType.SING_2D_HDR_COL_CLAMP);
+			Color = Texture.GenTextureDirectlyOnGPU(gl, _width, _height, 0, TextureType.SING_2D_HDR_COL_CLAMP);
 
-			checkForCompleteness(gl);
+			CheckForCompleteness(gl);
 		}
 	}
 	/*
@@ -128,24 +128,24 @@ namespace HybridRenderingEngine
 	{
 		public CaptureBuffer(GL gl, uint w, uint h)
 		{
-			width = w;
-			height = h;
-			frameBufferID = gl.GenFramebuffer();
-			gl.BindFramebuffer(FramebufferTarget.Framebuffer, frameBufferID);
+			_width = w;
+			_height = h;
+			Id = gl.GenFramebuffer();
+			gl.BindFramebuffer(FramebufferTarget.Framebuffer, Id);
 
-			depthBuffer = gl.GenRenderbuffer();
-			gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, depthBuffer);
-			gl.RenderbufferStorage(RenderbufferTarget.Renderbuffer, InternalFormat.DepthComponent24, width, height);
-			gl.FramebufferRenderbuffer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, RenderbufferTarget.Renderbuffer, depthBuffer);
+			Depth = gl.GenRenderbuffer();
+			gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, Depth);
+			gl.RenderbufferStorage(RenderbufferTarget.Renderbuffer, InternalFormat.DepthComponent24, _width, _height);
+			gl.FramebufferRenderbuffer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, RenderbufferTarget.Renderbuffer, Depth);
 			gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, 0);
 
-			checkForCompleteness(gl);
+			CheckForCompleteness(gl);
 		}
 
-		public void resizeFrameBuffer(GL gl, uint resolution)
+		public void Resize(GL gl, uint size)
 		{
-			gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, depthBuffer);
-			gl.RenderbufferStorage(RenderbufferTarget.Renderbuffer, InternalFormat.DepthComponent24, resolution, resolution);
+			gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, Depth);
+			gl.RenderbufferStorage(RenderbufferTarget.Renderbuffer, InternalFormat.DepthComponent24, size, size);
 		}
 	}
 	/*
@@ -157,17 +157,17 @@ namespace HybridRenderingEngine
 	{
 		public DirShadowBuffer(GL gl, uint w, uint h)
 		{
-			width = w;
-			height = h;
-			frameBufferID = gl.GenFramebuffer();
-			gl.BindFramebuffer(FramebufferTarget.Framebuffer, frameBufferID);
+			_width = w;
+			_height = h;
+			Id = gl.GenFramebuffer();
+			gl.BindFramebuffer(FramebufferTarget.Framebuffer, Id);
 
-			depthBuffer = Texture.GenTextureDirectlyOnGPU(gl, width, height, 0, TextureType.SING_2D_HDR_DEP_BORDER);
+			Depth = Texture.GenTextureDirectlyOnGPU(gl, _width, _height, 0, TextureType.SING_2D_HDR_DEP_BORDER);
 
 			gl.DrawBuffer(DrawBufferMode.None);
 			gl.ReadBuffer(ReadBufferMode.None);
 
-			checkForCompleteness(gl);
+			CheckForCompleteness(gl);
 		}
 	}
 	/*
@@ -177,30 +177,30 @@ namespace HybridRenderingEngine
 	*/
 	internal sealed class PointShadowBuffer : FrameBuffer
 	{
-		public CubeMap drawingTexture;
+		private CubeMap _drawingTexture;
 
 		public PointShadowBuffer(GL gl, uint w, uint h)
 		{
-			width = w;
-			height = h;
-			frameBufferID = gl.GenFramebuffer();
-			gl.BindFramebuffer(FramebufferTarget.Framebuffer, frameBufferID);
+			_width = w;
+			_height = h;
+			Id = gl.GenFramebuffer();
+			gl.BindFramebuffer(FramebufferTarget.Framebuffer, Id);
 
-			drawingTexture = new CubeMap();
-			drawingTexture.GenerateCubeMap(gl, width, height, CubeMapType.SHADOW_MAP);
-			depthBuffer = drawingTexture.textureID;
-			gl.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, depthBuffer, 0);
+			_drawingTexture = new CubeMap();
+			_drawingTexture.GenerateCubeMap(gl, _width, _height, CubeMapType.SHADOW_MAP);
+			Depth = _drawingTexture.Id;
+			gl.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, Depth, 0);
 
 			gl.DrawBuffer(DrawBufferMode.None);
 			gl.ReadBuffer(ReadBufferMode.None);
 
-			checkForCompleteness(gl);
+			CheckForCompleteness(gl);
 		}
 
 		public override void Delete(GL gl)
 		{
 			base.Delete(gl);
-			drawingTexture.Delete(gl);
+			_drawingTexture.Delete(gl);
 		}
 	}
 }

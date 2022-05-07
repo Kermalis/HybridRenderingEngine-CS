@@ -12,47 +12,47 @@ namespace HybridRenderingEngine
 		public const int OFFSET_UV = OFFSET_BITAN + (3 * sizeof(float));
 		public const int SIZE = OFFSET_UV + (2 * sizeof(float));
 
-		public Vector3 position;
-		public Vector3 normal;
-		public Vector3 tangent;
-		public Vector3 biTangent;
-		public Vector2 texCoords;
+		public Vector3 Position;
+		public Vector3 Normal;
+		public Vector3 Tangent;
+		public Vector3 BiTangent;
+		public Vector2 TexCoords;
 	}
 
 	internal sealed class Mesh
 	{
 		// OpenGL drawing variables
-		public uint VAO, VBO, EBO;
+		private readonly uint _vao;
+		private readonly uint _vbo;
+		private readonly uint _ebo;
 
-		public Vertex[] vertices;
-		public uint[] indices;
-		public uint[] textures;
+		private readonly uint _numIndices;
+		private readonly uint[] _textures;
 
 		public unsafe Mesh(GL gl, Vertex[] v, uint[] i, uint[] t)
 		{
-			vertices = v;
-			indices = i;
-			textures = t;
+			_numIndices = (uint)i.Length;
+			_textures = t;
 
 			// Generate Buffers
-			VAO = gl.GenVertexArray();
-			VBO = gl.GenBuffer();
-			EBO = gl.GenBuffer();
+			_vao = gl.GenVertexArray();
+			_vbo = gl.GenBuffer();
+			_ebo = gl.GenBuffer();
 
-			gl.BindVertexArray(VAO);
+			gl.BindVertexArray(_vao);
 
 			// VBO stuff
-			gl.BindBuffer(BufferTargetARB.ArrayBuffer, VBO);
+			gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
 			fixed (void* data = v)
 			{
 				gl.BufferData(BufferTargetARB.ArrayBuffer, (uint)v.Length * Vertex.SIZE, data, BufferUsageARB.StaticDraw);
 			}
 
 			// EBO stuff
-			gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, EBO);
+			gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
 			fixed (void* data = i)
 			{
-				gl.BufferData(BufferTargetARB.ElementArrayBuffer, (uint)i.Length * sizeof(uint), data, BufferUsageARB.StaticDraw);
+				gl.BufferData(BufferTargetARB.ElementArrayBuffer, _numIndices * sizeof(uint), data, BufferUsageARB.StaticDraw);
 			}
 
 			// Vertex position pointer init
@@ -86,16 +86,16 @@ namespace HybridRenderingEngine
 			// Diffuse
 			gl.ActiveTexture(TextureUnit.Texture0);
 			shader.SetInt(gl, "albedoMap", 0);
-			gl.BindTexture(TextureTarget.Texture2D, textures[0]);
+			gl.BindTexture(TextureTarget.Texture2D, _textures[0]);
 			if (textured)
 			{
 				// Emissive
 				gl.ActiveTexture(TextureUnit.Texture1);
 				shader.SetInt(gl, "emissiveMap", 1);
-				gl.BindTexture(TextureTarget.Texture2D, textures[1]);
+				gl.BindTexture(TextureTarget.Texture2D, _textures[1]);
 
 				// Normals
-				if (textures[2] == 0)
+				if (_textures[2] == 0)
 				{
 					shader.SetBool(gl, "normalMapped", false);
 				}
@@ -105,10 +105,10 @@ namespace HybridRenderingEngine
 				}
 				gl.ActiveTexture(TextureUnit.Texture2);
 				shader.SetInt(gl, "normalsMap", 2);
-				gl.BindTexture(TextureTarget.Texture2D, textures[2]);
+				gl.BindTexture(TextureTarget.Texture2D, _textures[2]);
 
 				// Ambient Oclussion
-				if (textures[3] == 0)
+				if (_textures[3] == 0)
 				{
 					shader.SetBool(gl, "aoMapped", false);
 				}
@@ -118,25 +118,25 @@ namespace HybridRenderingEngine
 				}
 				gl.ActiveTexture(TextureUnit.Texture3);
 				shader.SetInt(gl, "lightMap", 3);
-				gl.BindTexture(TextureTarget.Texture2D, textures[3]);
+				gl.BindTexture(TextureTarget.Texture2D, _textures[3]);
 
 				// Metal / Roughness
 				gl.ActiveTexture(TextureUnit.Texture4);
 				shader.SetInt(gl, "metalRoughMap", 4);
-				gl.BindTexture(TextureTarget.Texture2D, textures[4]);
+				gl.BindTexture(TextureTarget.Texture2D, _textures[4]);
 
 			}
 
 			// Mesh Drawing
-			gl.BindVertexArray(VAO);
-			gl.DrawElements(PrimitiveType.Triangles, (uint)indices.Length, DrawElementsType.UnsignedInt, 0);
+			gl.BindVertexArray(_vao);
+			gl.DrawElements(PrimitiveType.Triangles, _numIndices, DrawElementsType.UnsignedInt, 0);
 		}
 
 		public void Delete(GL gl)
 		{
-			gl.DeleteVertexArray(VAO);
-			gl.DeleteBuffer(VBO);
-			gl.DeleteBuffer(EBO);
+			gl.DeleteVertexArray(_vao);
+			gl.DeleteBuffer(_vbo);
+			gl.DeleteBuffer(_ebo);
 		}
 	}
 }

@@ -5,7 +5,7 @@ using System.IO;
 
 namespace HybridRenderingEngine
 {
-	enum TextureType
+	internal enum TextureType
 	{
 		MULT_2D_HDR_COL,
 		SING_2D_HDR_COL,
@@ -18,46 +18,35 @@ namespace HybridRenderingEngine
 	internal class Texture
 	{
 		// TextureID is zero only if the texture has not been initialized properly by OpenGl
-		public uint textureID;
-		public uint width, height, nComponents;
+		public uint Id;
+		public uint Width;
+		public uint Height;
 
-		// Leftover from old non-pbr workflow. TODO:: cleanup and/or recuperate functionality
-		public string type, path;
-
-		/*
-		 * The basic texture loading function. Deals with:
-		 * 1.- All textures that stb image can deal with except hdr
-		 * 2.- DDS textures through gli
-		 * 3.- SRGB and non SRGB textures
-		 * 4.- R, RGB, RGBA texture types
-		 * 
-		 * Textures generated here are mip-mapped and repeat
-		 */
 		public void LoadTexture(GL gl, string filePath, bool sRGB)
 		{
-			path = filePath.Replace('\\', '/');
+			filePath = filePath.Replace('\\', '/');
 
-			textureID = gl.GenTexture();
+			Id = gl.GenTexture();
 			// Stbi.SetFlipVerticallyOnLoad(true);
 			MemoryStream ms;
-			using (FileStream stream = File.OpenRead(path))
+			using (FileStream stream = File.OpenRead(filePath))
 			{
 				ms = new MemoryStream();
 				stream.CopyTo(ms);
 			}
 			StbiImage img = Stbi.LoadFromMemory(ms, 0);
-			width = (uint)img.Width;
-			height = (uint)img.Height;
-			nComponents = (uint)img.NumChannels;
+			Width = (uint)img.Width;
+			Height = (uint)img.Height;
+			uint numChan = (uint)img.NumChannels;
 
 			PixelFormat format;
 			InternalFormat internalFormat;
-			if (nComponents == 1)
+			if (numChan == 1)
 			{
 				format = PixelFormat.Red;
 				internalFormat = InternalFormat.Red;
 			}
-			else if (nComponents == 3)
+			else if (numChan == 3)
 			{
 				format = PixelFormat.Rgb;
 				if (sRGB)
@@ -69,7 +58,7 @@ namespace HybridRenderingEngine
 					internalFormat = InternalFormat.Rgb;
 				}
 			}
-			else if (nComponents == 4)
+			else if (numChan == 4)
 			{
 				format = PixelFormat.Rgba;
 				if (sRGB)
@@ -86,8 +75,8 @@ namespace HybridRenderingEngine
 				throw new InvalidDataException();
 			}
 
-			gl.BindTexture(TextureTarget.Texture2D, textureID);
-			gl.TexImage2D(TextureTarget.Texture2D, 0, internalFormat, width, height, 0, format, PixelType.UnsignedByte, img.Data);
+			gl.BindTexture(TextureTarget.Texture2D, Id);
+			gl.TexImage2D(TextureTarget.Texture2D, 0, internalFormat, Width, Height, 0, format, PixelType.UnsignedByte, img.Data);
 			gl.GenerateMipmap(TextureTarget.Texture2D);
 
 			// MipMapped and repeating
@@ -112,13 +101,12 @@ namespace HybridRenderingEngine
 				stream.CopyTo(ms);
 			}
 			StbiImageF img = Stbi.LoadFFromMemory(ms, 0);
-			width = (uint)img.Width;
-			height = (uint)img.Height;
-			nComponents = (uint)img.NumChannels;
+			Width = (uint)img.Width;
+			Height = (uint)img.Height;
 
-			textureID = gl.GenTexture();
-			gl.BindTexture(TextureTarget.Texture2D, textureID);
-			gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb32f, width, height, 0, PixelFormat.Rgb, PixelType.Float, img.Data);
+			Id = gl.GenTexture();
+			gl.BindTexture(TextureTarget.Texture2D, Id);
+			gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb32f, Width, Height, 0, PixelFormat.Rgb, PixelType.Float, img.Data);
 
 			gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 			gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
@@ -204,7 +192,7 @@ namespace HybridRenderingEngine
 
 		public void Delete(GL gl)
 		{
-			gl.DeleteTexture(textureID);
+			gl.DeleteTexture(Id);
 		}
 	}
 }
