@@ -85,10 +85,8 @@ vec3 importanceSampleGGX(vec2 Xi, vec3 N, float roughness){
 
     //Tangent space cartesian to world space
     vec3 up = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-    //vec3 tangent = normalize(cross(up, N));
-    vec3 tangent = normalize(cross(N, up)); // KERM
-    //vec3 bitangent = cross(N, tangent);
-    vec3 bitangent = cross(tangent, N); // KERM
+    vec3 tangent = normalize(cross(up, N));
+    vec3 bitangent = cross(N, tangent);
 
     //Multiplaying halfway vector times implicit TBN matrix
     vec3 sampleVec = tangent * H.x + bitangent * H.y + N* H.z;

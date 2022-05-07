@@ -17,10 +17,8 @@ void main(){
 
     //Creating basis vectors
     vec3 up    = vec3(0.0, 1.0, 0.0);
-    //vec3 right = cross(up, N);
-    vec3 right = cross(N, up); // KERM
-    //up = cross(N, right);
-    up = cross(right, N); // KERM
+    vec3 right = cross(up, N);
+    up = cross(N, right);
 
     float delta = 0.025;
     float nSamples = 0.0;

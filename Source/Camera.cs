@@ -17,11 +17,12 @@ namespace HybridRenderingEngine
 
 		// Original values used to initialize the camera
 		// We keep them in memory in case user wants to reset position
-		public Vector3 originalPosition, originalTarget, originalFront, originalSide;
+		public Vector3 originalPosition, originalTarget, originalFront, originalRight;
 		public float originalPitch, originalYaw;
 
 		// Camera basis vectors for view matrix construction
-		public Vector3 position, side, front, target, up;
+		public Vector3 position, front, target, up;
+		private Vector3 right;
 		public float pitch, yaw;
 
 		// Physical/Optical properties
@@ -37,8 +38,7 @@ namespace HybridRenderingEngine
 			target = tar;
 			front = Vector3.Normalize(target - position);
 			up = Vector3.UnitY;
-			//side = Vector3.Normalize(Vector3.Cross(front, up));
-			side = Vector3.Normalize(Vector3.Cross(up, front)); // KERM
+			right = Vector3.Normalize(Vector3.Cross(front, up));
 			pitch = GetPitch(front);
 			yaw = GetYaw(front, pitch);
 
@@ -46,7 +46,7 @@ namespace HybridRenderingEngine
 			originalPosition = pos;
 			originalTarget = tar;
 			originalFront = front;
-			originalSide = side;
+			originalRight = right;
 			originalPitch = pitch;
 			originalYaw = yaw;
 
@@ -90,10 +90,10 @@ namespace HybridRenderingEngine
 						position -= front * speed;
 						break;
 					case 'a':
-						position -= side * speed;
+						position -= right * speed;
 						break;
 					case 'd':
-						position += side * speed;
+						position += right * speed;
 						break;
 					case 'q':
 						position += up * speed;
@@ -116,7 +116,7 @@ namespace HybridRenderingEngine
 			position = originalPosition;
 			target = originalTarget;
 			front = originalFront;
-			side = originalSide;
+			right = originalRight;
 			pitch = originalPitch;
 			yaw = originalYaw;
 		}
@@ -139,8 +139,7 @@ namespace HybridRenderingEngine
 			front.Y = MathF.Sin(pitch * MyUtils.DEG_TO_RAD);
 			front.Z = MathF.Cos(pitch * MyUtils.DEG_TO_RAD) * MathF.Sin(yaw * MyUtils.DEG_TO_RAD);
 			front = Vector3.Normalize(front);
-			//side = Vector3.Normalize(Vector3.Cross(front, up));
-			side = Vector3.Normalize(Vector3.Cross(up, front)); // KERM
+			right = Vector3.Normalize(Vector3.Cross(front, up));
 		}
 	}
 }
