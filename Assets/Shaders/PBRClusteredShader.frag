@@ -121,9 +121,6 @@ float geometrySchlickGGX(float nDotV, float rough);
 float geometrySmith(float nDotV, float nDotL, float rough);
 
 void main(){
-        FragColor = vec4(0.8, 0.1, 0.4, 1.0);
-		return;
-		// TESTING^
     // Texture Reads
     vec4 color      = texture(albedoMap, fs_in.texCoords).rgba;
     vec3 emissive   = texture(emissiveMap, fs_in.texCoords).rgb;

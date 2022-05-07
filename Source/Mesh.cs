@@ -81,12 +81,13 @@ namespace HybridRenderingEngine
 
 		// The diffuse texture is assumed to always exist and always loaded in case you want to do alpha
 		// discard. Lower overhead texture setup is something worth investigating here.
-		public void Render(GL gl, Shader shader, bool textured)
+		public unsafe void Render(GL gl, Shader shader, bool textured)
 		{
 			// Diffuse
 			gl.ActiveTexture(TextureUnit.Texture0);
 			shader.SetInt(gl, "albedoMap", 0);
 			gl.BindTexture(TextureTarget.Texture2D, _textures[0]);
+
 			if (textured)
 			{
 				// Emissive
@@ -124,12 +125,11 @@ namespace HybridRenderingEngine
 				gl.ActiveTexture(TextureUnit.Texture4);
 				shader.SetInt(gl, "metalRoughMap", 4);
 				gl.BindTexture(TextureTarget.Texture2D, _textures[4]);
-
 			}
 
 			// Mesh Drawing
 			gl.BindVertexArray(_vao);
-			gl.DrawElements(PrimitiveType.Triangles, _numIndices, DrawElementsType.UnsignedInt, 0);
+			gl.DrawElements(PrimitiveType.Triangles, _numIndices, DrawElementsType.UnsignedInt, null);
 		}
 
 		public void Delete(GL gl)
