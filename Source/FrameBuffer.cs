@@ -102,6 +102,12 @@ namespace HybridRenderingEngine
 
 			CheckForCompleteness(gl);
 		}
+
+		public override void Delete(GL gl)
+		{
+			base.Delete(gl);
+			gl.DeleteTexture(BlurHighEnd);
+		}
 	}
 	/*
 	Framebuffer Characteristics
@@ -177,7 +183,7 @@ namespace HybridRenderingEngine
 	*/
 	internal sealed class PointShadowBuffer : FrameBuffer
 	{
-		private CubeMap _drawingTexture;
+		private readonly CubeMap _drawingTexture;
 
 		public PointShadowBuffer(GL gl, uint w, uint h)
 		{
