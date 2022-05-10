@@ -30,7 +30,6 @@ namespace HybridRenderingEngine
 		// Runs main application loop
 		public static void Run()
 		{
-			// Early exit or other shared data flags
 			bool done = false;
 
 			// Iteration and time keeping counters
@@ -46,11 +45,8 @@ namespace HybridRenderingEngine
 				++count;
 				uint start = sdl.GetTicks();
 
-				// Handle all user input
-				// Any changes to the scene are directly sent to the respective objects in
-				// the scene class. Also sets exit flag based on user input.
 				Scene s = Scene.Instance;
-				InputManager.ProcessInput(s.Cam, ref done, deltaT);
+				InputManager.ProcessInput(DisplayManager.Instance.SDL, s.Cam, ref done);
 
 				// Update all models, camera and lighting in the current scene
 				s.Update(deltaT);

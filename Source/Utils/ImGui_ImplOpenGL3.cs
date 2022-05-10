@@ -115,7 +115,25 @@ namespace HybridRenderingEngine.Utils
 			float R = draw_data->DisplayPos.X + draw_data->DisplaySize.X;
 			float T = draw_data->DisplayPos.Y;
 			float B = draw_data->DisplayPos.Y + draw_data->DisplaySize.Y;
-			var ortho_projection = Matrix4x4.CreateOrthographicOffCenter(L, R, B, T, 0, 1);
+
+			Matrix4x4 ortho_projection;
+			ortho_projection.M11 = 2f / (R - L);
+			ortho_projection.M12 = 0f;
+			ortho_projection.M13 = 0f;
+			ortho_projection.M14 = 0f;
+			ortho_projection.M21 = 0f;
+			ortho_projection.M22 = 2f / (T - B);
+			ortho_projection.M23 = 0f;
+			ortho_projection.M24 = 0f;
+			ortho_projection.M31 = 0f;
+			ortho_projection.M32 = 0f;
+			ortho_projection.M33 = -1f;
+			ortho_projection.M34 = 0f;
+			ortho_projection.M41 = (R + L) / (L - R);
+			ortho_projection.M42 = (T + B) / (B - T);
+			ortho_projection.M43 = 0f;
+			ortho_projection.M44 = 1f;
+
 			gl.UseProgram(_bd.ShaderHandle);
 			gl.Uniform1(_bd.ShaderLocationTex, 0);
 			gl.UniformMatrix4(_bd.ShaderLocationProjMtx, 1, false, (float*)&ortho_projection);

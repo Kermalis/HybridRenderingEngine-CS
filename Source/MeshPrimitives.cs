@@ -10,42 +10,36 @@ namespace HybridRenderingEngine
 	{
 		protected uint _vao;
 		protected uint _vbo;
-		private readonly uint _numVert;
 
-		protected Primitive(uint numVertex)
-		{
-			_numVert = numVertex;
-		}
-
-		// The drawing function that is shared between all mesh primitives
-		public virtual void Render(GL gl, uint readTexture1 = 0, uint readTexture2 = 0, uint readTexture3 = 0)
+		public abstract void Render(GL gl, uint readTexture1 = 0, uint readTexture2 = 0, uint readTexture3 = 0);
+		protected void Render(GL gl, uint numVerts, uint readTex1, uint readTex2, uint readTex3)
 		{
 			gl.BindVertexArray(_vao);
 
 			// This texture read could be compacted into a for loop and an array could be passed instead
 			// But for now this is sufficient 
-			if (readTexture1 != 0)
+			if (readTex1 != 0)
 			{
 				gl.ActiveTexture(TextureUnit.Texture0);
-				gl.BindTexture(TextureTarget.Texture2D, readTexture1);
+				gl.BindTexture(TextureTarget.Texture2D, readTex1);
 			}
 
 			// A texture id of 0 is never assigned by opengl so we can
 			// be sure that it means we haven't set any texture in the second paramenter and therefore
 			// we only want one texture
-			if (readTexture2 != 0)
+			if (readTex2 != 0)
 			{
 				gl.ActiveTexture(TextureUnit.Texture1);
-				gl.BindTexture(TextureTarget.Texture2D, readTexture2);
+				gl.BindTexture(TextureTarget.Texture2D, readTex2);
 			}
 
-			if (readTexture3 != 0)
+			if (readTex3 != 0)
 			{
 				gl.ActiveTexture(TextureUnit.Texture2);
-				gl.BindTexture(TextureTarget.Texture2D, readTexture3);
+				gl.BindTexture(TextureTarget.Texture2D, readTex3);
 			}
 
-			gl.DrawArrays(PrimitiveType.Triangles, 0, _numVert);
+			gl.DrawArrays(PrimitiveType.Triangles, 0, numVerts);
 		}
 
 		public void Delete(GL gl)
@@ -58,60 +52,37 @@ namespace HybridRenderingEngine
 	// Mostly used for screen space or render to texture stuff
 	internal sealed class Quad : Primitive
 	{
-		public unsafe Quad(GL gl)
-			: base(6)
-		{
-			Span<float> quadVertices = stackalloc float[24]
-				{
-				// positions // texCoordinates
-				-1f,
-				1f,
-				0f,
-				1f,
-				-1f,
-				-1f,
-				0f,
-				0f,
-				1f,
-				-1f,
-				1f,
-				0f,
+		private const int NUM_VERTS = 6;
+		private const int NUM_FLOATS_PER_VERT = 2 + 2;
 
-				-1f,
-				1f,
-				0f,
-				1f,
-				1f,
-				-1f,
-				1f,
-				0f,
-				1f,
-				1f,
-				1f,
-				1f
+		public unsafe Quad(GL gl)
+		{
+			ReadOnlySpan<float> quadVertices = new float[NUM_VERTS * NUM_FLOATS_PER_VERT]
+			{
+				// POS  // UV
+				-1f, 1f, 0f, 1f,
+				-1f, -1f, 0f, 0f,
+				1f, -1f, 1f, 0f,
+
+				-1f, 1f, 0f, 1f,
+				1f, -1f, 1f, 0f,
+				1f, 1f, 1f, 1f
 			};
 
-			// OpenGL postprocessing quad setup
 			_vao = gl.GenVertexArray();
-			_vbo = gl.GenBuffer();
-
-			// Bind Vertex Array Object and VBO in correct order
 			gl.BindVertexArray(_vao);
+
+			_vbo = gl.GenBuffer();
 			gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+			gl.BufferData(BufferTargetARB.ArrayBuffer, NUM_VERTS * NUM_FLOATS_PER_VERT * sizeof(float), quadVertices, BufferUsageARB.StaticDraw);
 
-			// VBO initialization
-			fixed (void* data = quadVertices)
-			{
-				gl.BufferData(BufferTargetARB.ArrayBuffer, sizeof(float) * 24, data, BufferUsageARB.StaticDraw);
-			}
-
-			// Quad position pointer initialization in attribute array
+			// Pos
 			gl.EnableVertexAttribArray(0);
-			gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), (void*)0);
+			gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, NUM_FLOATS_PER_VERT * sizeof(float), (void*)0);
 
-			// Quad texcoords pointer initialization in attribute array
+			// UVs
 			gl.EnableVertexAttribArray(1);
-			gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+			gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, NUM_FLOATS_PER_VERT * sizeof(float), (void*)(2 * sizeof(float)));
 
 			gl.BindVertexArray(0);
 		}
@@ -120,153 +91,81 @@ namespace HybridRenderingEngine
 		public override void Render(GL gl, uint readTex1 = 0, uint readTex2 = 0, uint readTex3 = 0)
 		{
 			gl.Disable(EnableCap.DepthTest);
-			base.Render(gl, readTex1, readTex2, readTex3);
+			Render(gl, NUM_VERTS, readTex1, readTex2, readTex3);
 		}
 	}
 
 	// Used in cubemap rendering
 	internal sealed class Cube : Primitive
 	{
+		private const int NUM_VERTS = 36;
+		private const int NUM_FLOATS_PER_VERT = 3;
+
 		public unsafe Cube(GL gl)
-			: base(36)
 		{
-			Span<float> boxVertices = stackalloc float[108]
-				{
-				-1f,
-				1f,
-				-1f,
-				-1f,
-				-1f,
-				-1f,
-				1f,
-				-1f,
-				-1f,
-				1f,
-				-1f,
-				-1f,
-				1f,
-				1f,
-				-1f,
-				-1f,
-				1f,
-				-1f,
+			ReadOnlySpan<float> boxVertices = new float[NUM_VERTS * NUM_FLOATS_PER_VERT]
+			{
+				-1f, 1f, -1f,
+				-1f, -1f, -1f,
+				1f, -1f, -1f,
+				1f, -1f, -1f,
+				1f, 1f, -1f,
+				-1f, 1f, -1f,
 
-				-1f,
-				-1f,
-				1f,
-				-1f,
-				-1f,
-				-1f,
-				-1f,
-				1f,
-				-1f,
-				-1f,
-				1f,
-				-1f,
-				-1f,
-				1f,
-				1f,
-				-1f,
-				-1f,
-				1f,
+				-1f, -1f, 1f,
+				-1f, -1f, -1f,
+				-1f, 1f, -1f,
+				-1f, 1f, -1f,
+				-1f, 1f, 1f,
+				-1f, -1f, 1f,
 
-				1f,
-				-1f,
-				-1f,
-				1f,
-				-1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				-1f,
-				1f,
-				-1f,
-				-1f,
+				1f, -1f, -1f,
+				1f, -1f, 1f,
+				1f, 1f, 1f,
+				1f, 1f, 1f,
+				1f, 1f, -1f,
+				1f, -1f, -1f,
 
-				-1f,
-				-1f,
-				1f,
-				-1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				-1f,
-				1f,
-				-1f,
-				-1f,
-				1f,
+				-1f, -1f, 1f,
+				-1f, 1f, 1f,
+				1f, 1f, 1f,
+				1f, 1f, 1f,
+				1f, -1f, 1f,
+				-1f, -1f, 1f,
 
-				-1f,
-				1f,
-				-1f,
-				1f,
-				1f,
-				-1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				1f,
-				-1f,
-				1f,
-				1f,
-				-1f,
-				1f,
-				-1f,
+				-1f, 1f, -1f,
+				1f, 1f, -1f,
+				1f, 1f, 1f,
+				1f, 1f, 1f,
+				-1f, 1f, 1f,
+				-1f, 1f, -1f,
 
-				-1f,
-				-1f,
-				-1f,
-				-1f,
-				-1f,
-				1f,
-				1f,
-				-1f,
-				-1f,
-				1f,
-				-1f,
-				-1f,
-				-1f,
-				-1f,
-				1f,
-				1f,
-				-1f,
-				1f
+				-1f, -1f, -1f,
+				-1f, -1f, 1f,
+				1f, -1f, -1f,
+				1f, -1f, -1f,
+				-1f, -1f, 1f,
+				1f, -1f, 1f
 			};
 
-			// Generate Buffers
 			_vao = gl.GenVertexArray();
-			_vbo = gl.GenBuffer();
-
-			// Bind Vertex Array Object and VBO in correct order
 			gl.BindVertexArray(_vao);
-			gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
 
-			// VBO initialization
-			fixed (void* data = boxVertices)
-			{
-				gl.BufferData(BufferTargetARB.ArrayBuffer, sizeof(float) * 108, data, BufferUsageARB.StaticDraw);
-			}
+			_vbo = gl.GenBuffer();
+			gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+			gl.BufferData(BufferTargetARB.ArrayBuffer, NUM_VERTS * NUM_FLOATS_PER_VERT * sizeof(float), boxVertices, BufferUsageARB.StaticDraw);
 
 			// Vertex position pointer init
 			gl.EnableVertexAttribArray(0);
-			gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), (void*)0);
+			gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, NUM_FLOATS_PER_VERT * sizeof(float), (void*)0);
 
 			// Unbinding VAO
 			gl.BindVertexArray(0);
+		}
+
+		public override void Render(GL gl, uint readTex1 = 0, uint readTex2 = 0, uint readTex3 = 0)
+		{
+			Render(gl, NUM_VERTS, readTex1, readTex2, readTex3);
 		}
 	}
 }

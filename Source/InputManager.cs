@@ -13,12 +13,12 @@ namespace HybridRenderingEngine
 		 * 3. Handle keyboard events ourselves
 		 * 4. Handle mouse events directly 
 		*/
-		public static void ProcessInput(Camera sceneCamera, ref bool done, uint deltaT)
+		public static void ProcessInput(Sdl sdl, Camera sceneCamera, ref bool done)
 		{
 			Event ev = default;
 			ImGuiIOPtr io = ImGui.GetIO();
 
-			while (DisplayManager.Instance.SDL.PollEvent(ref ev) != 0)
+			while (sdl.PollEvent(ref ev) != 0)
 			{
 				// First check if user requests an exit
 				if (ev.Type == (uint)EventType.Quit)
@@ -38,13 +38,13 @@ namespace HybridRenderingEngine
 				// Keypresses, mouse etc
 				else
 				{
-					HandleEvent(sceneCamera, ref ev, ref done, deltaT);
+					HandleEvent(sceneCamera, ref ev, ref done);
 				}
 			}
 		}
 
 		// Maybe a candidate to break apart into smaller functions
-		private static void HandleEvent(Camera sceneCamera, ref Event ev, ref bool done, uint deltaT)
+		private static void HandleEvent(Camera sceneCamera, ref Event ev, ref bool done)
 		{
 			// For keyboard input we want to avoid repeated movement when the key is held
 			// Instead of actually updating the camera position for each key call we update a 

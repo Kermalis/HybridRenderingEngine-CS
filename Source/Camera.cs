@@ -10,7 +10,9 @@ namespace HybridRenderingEngine
 		// Containers for the camera transform matrices and frustum geometry
 		public Matrix4x4 ViewMatrix;
 		public Matrix4x4 ProjectionMatrix;
-		public Frustum Frustum;
+		public float NearPlane;
+		public float FarPlane;
+		private readonly float _fov;
 
 		// Keeps track of the current relevant keys that are pressed to avoid issues with
 		// the frequency of polling of the keyboard vs the frequency of updates
@@ -31,13 +33,13 @@ namespace HybridRenderingEngine
 		public float CamSpeed, MouseSens, Exposure;
 		public int BlurAmount;
 
-		public Camera(in Vector3 tar, in Vector3 pos, float fov, float speed, float sens, float nearP, float farP)
+		public Camera(in Vector3 target, in Vector3 pos, float fov, float speed, float sens, float nearP, float farP)
 		{
 			ActiveMoveStates = new HashSet<char>();
 
 			// Position and orientation of the camera, both in cartesian and spherical
 			Position = pos;
-			_target = tar;
+			_target = target;
 			_front = Vector3.Normalize(_target - Position);
 			_up = Vector3.UnitY;
 			_right = Vector3.Normalize(Vector3.Cross(_front, _up));
@@ -46,18 +48,16 @@ namespace HybridRenderingEngine
 
 			// Saving reset position values
 			_ogPosition = pos;
-			_ogTarget = tar;
+			_ogTarget = target;
 			_ogFront = _front;
 			_ogRight = _right;
 			_ogPitch = Pitch;
 			_ogYaw = Yaw;
 
 			// Shaping the frustum to the scene's imported values
-			Frustum = new Frustum();
-			Frustum.FOV = fov;
-			Frustum.AspectRatio = DisplayManager.SCREEN_ASPECT_RATIO;
-			Frustum.FarPlane = farP;
-			Frustum.NearPlane = nearP;
+			_fov = fov;
+			FarPlane = farP;
+			NearPlane = nearP;
 
 			// Setting default values of other miscellaneous camera parameters
 			CamSpeed = speed;
@@ -66,19 +66,18 @@ namespace HybridRenderingEngine
 			Exposure = 1f;
 
 			// Setting up perspective and view matrix for rendering
-			ViewMatrix = Matrix4x4.CreateLookAt(Position, _target, _up);
-			ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(Frustum.FOV * MyUtils.DEG_TO_RAD,
-				Frustum.AspectRatio, Frustum.NearPlane, Frustum.FarPlane);
+			ViewMatrix = MyUtils.GLM_LookAtRH(Position, _target, _up);
+			ProjectionMatrix = MyUtils.GLM_PerspectiveRH_NO(_fov * MyUtils.DEG_TO_RAD, DisplayManager.SCREEN_ASPECT_RATIO, NearPlane, FarPlane);
 		}
 
 		// Updates the cameras orientation and position based on the input from the user
 		// Also updates view matrix and projection matrix for rendering
 		public void Update(uint deltaT)
 		{
-			float speed = CamSpeed * deltaT;
-
 			// We apply the rotation first
 			UpdateOrientation();
+
+			float speed = CamSpeed * deltaT;
 
 			// Then translate
 			foreach (char x in ActiveMoveStates)
@@ -86,30 +85,42 @@ namespace HybridRenderingEngine
 				switch (x)
 				{
 					case 'w':
+					{
 						Position += _front * speed;
 						break;
+					}
 					case 's':
+					{
 						Position -= _front * speed;
 						break;
+					}
 					case 'a':
+					{
 						Position -= _right * speed;
 						break;
+					}
 					case 'd':
+					{
 						Position += _right * speed;
 						break;
+					}
 					case 'q':
+					{
 						Position += _up * speed;
 						break;
+					}
 					case 'e':
+					{
 						Position -= _up * speed;
 						break;
+					}
 				}
 			}
 
 			// And we recalculate the new view and projection matrices for rendering
 			_target = Position + _front;
-			ViewMatrix = Matrix4x4.CreateLookAt(Position, _target, _up);
-			ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(Frustum.FOV * MyUtils.DEG_TO_RAD, Frustum.AspectRatio, Frustum.NearPlane, Frustum.FarPlane);
+			ViewMatrix = MyUtils.GLM_LookAtRH(Position, _target, _up);
+			ProjectionMatrix = MyUtils.GLM_PerspectiveRH_NO(_fov * MyUtils.DEG_TO_RAD, DisplayManager.SCREEN_ASPECT_RATIO, NearPlane, FarPlane);
 		}
 
 		// Used by input to reset camera to origin in case user loses their bearings
@@ -125,11 +136,11 @@ namespace HybridRenderingEngine
 
 		// Transform from cartesian to spherical, used in the first setup of yaw and pitch
 		// Since the incoming target and position values are being read from an unknown scene file
-		public static float GetPitch(in Vector3 front)
+		private static float GetPitch(in Vector3 front)
 		{
 			return MathF.Asin(front.Y) * MyUtils.RAD_TO_DEG;
 		}
-		public static float GetYaw(in Vector3 front, float pitch)
+		private static float GetYaw(in Vector3 front, float pitch)
 		{
 			return MathF.Acos(front.X / MathF.Cos(pitch * MyUtils.DEG_TO_RAD)) * MyUtils.RAD_TO_DEG;
 		}

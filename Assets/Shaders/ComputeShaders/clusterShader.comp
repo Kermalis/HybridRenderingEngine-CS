@@ -7,12 +7,17 @@ struct VolumeTileAABB{
     vec4 maxPoint;
 };
 layout (std430, binding = 1) buffer clusterAABB{
-    VolumeTileAABB cluster[ ];
+    VolumeTileAABB cluster[];
 };
 layout (std430, binding = 2) buffer screenToView{
     mat4 inverseProjection;
-    uvec4 tileSizes;
+    uint tileSizeX;
+    uint tileSizeY;
+    uint tileSizeZ;
+    uint tileSizePx;
     uvec2 screenDimensions;
+    float scale;
+    float bias;
 };
 
 //Shared between all clusters
@@ -29,7 +34,6 @@ void main(){
     const vec3 eyePos = vec3(0.0);
 
     // Per Tile variables
-    uint tileSizePx = tileSizes[3];
     uint tileIndex = gl_WorkGroupID.x +
                      gl_WorkGroupID.y * gl_NumWorkGroups.x +
                      gl_WorkGroupID.z * (gl_NumWorkGroups.x * gl_NumWorkGroups.y);

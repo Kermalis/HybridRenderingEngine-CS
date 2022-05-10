@@ -16,15 +16,15 @@ namespace HybridRenderingEngine
 
 	internal sealed class CubeMap : Texture
 	{
-		private static readonly Matrix4x4 _captureProjection = Matrix4x4.CreatePerspectiveFieldOfView(90f * MyUtils.DEG_TO_RAD, 1f, 0.1f, 10f);
+		private static readonly Matrix4x4 _captureProjection = MyUtils.GLM_PerspectiveRH_NO(90f * MyUtils.DEG_TO_RAD, 1f, 0.1f, 10f);
 		private static readonly Matrix4x4[] _captureViews = new Matrix4x4[6]
 		{
-			Matrix4x4.CreateLookAt(Vector3.Zero, new Vector3(1f, 0f, 0f), new Vector3(0f, -1f, 0f)),
-			Matrix4x4.CreateLookAt(Vector3.Zero, new Vector3(-1f, 0f, 0f), new Vector3(0f, -1f, 0f)),
-			Matrix4x4.CreateLookAt(Vector3.Zero, new Vector3(0f, 1f, 0f), new Vector3(0f, 0f, 1f)),
-			Matrix4x4.CreateLookAt(Vector3.Zero, new Vector3(0f, -1f, 0f), new Vector3(0f, 0f, -1f)),
-			Matrix4x4.CreateLookAt(Vector3.Zero, new Vector3(0f, 0f, 1f), new Vector3(0f, -1f, 0f)),
-			Matrix4x4.CreateLookAt(Vector3.Zero, new Vector3(0f, 0f, -1f), new Vector3(0f, -1f, 0f))
+			MyUtils.GLM_LookAtRH(Vector3.Zero, new Vector3(1f, 0f, 0f), new Vector3(0f, -1f, 0f)),
+			MyUtils.GLM_LookAtRH(Vector3.Zero, new Vector3(-1f, 0f, 0f), new Vector3(0f, -1f, 0f)),
+			MyUtils.GLM_LookAtRH(Vector3.Zero, new Vector3(0f, 1f, 0f), new Vector3(0f, 0f, 1f)),
+			MyUtils.GLM_LookAtRH(Vector3.Zero, new Vector3(0f, -1f, 0f), new Vector3(0f, 0f, -1f)),
+			MyUtils.GLM_LookAtRH(Vector3.Zero, new Vector3(0f, 0f, 1f), new Vector3(0f, -1f, 0f)),
+			MyUtils.GLM_LookAtRH(Vector3.Zero, new Vector3(0f, 0f, -1f), new Vector3(0f, -1f, 0f))
 		};
 		private static readonly string[] _fileHandleForFaces = new string[6]
 		{
@@ -119,7 +119,7 @@ namespace HybridRenderingEngine
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 
 					// For the specular IBL component we use the mipmap levels to store increasingly
-					// rougher representations of the environment. And then interpolater between those
+					// rougher representations of the environment. And then interpolate between those
 					gl.GenerateMipmap(TextureTarget.TextureCubeMap);
 					_maxMipLevels = 5;
 					break;
@@ -149,7 +149,7 @@ namespace HybridRenderingEngine
 
 		}
 
-		// Specular IBL cubemap component of hte integral
+		// Specular IBL cubemap component of the integral
 		public void PreFilterCubeMap(GL gl, uint environmentMap, uint captureRBO, Shader filterShader)
 		{
 			filterShader.Use(gl);
@@ -194,7 +194,7 @@ namespace HybridRenderingEngine
 			gl.BindTexture(TextureTarget.Texture2D, equirectangularMap);
 			gl.Viewport(0, 0, size, size);
 
-			for (int i = 0; i < 6; i++)
+			for (int i = 0; i < 6; ++i)
 			{
 				transformShader.SetMat4(gl, "view", _captureViews[i]);
 				gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.TextureCubeMapPositiveX + i, Id, 0);

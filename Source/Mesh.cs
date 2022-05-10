@@ -1,5 +1,7 @@
 ﻿using Silk.NET.OpenGL;
+using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace HybridRenderingEngine
 {
@@ -27,30 +29,28 @@ namespace HybridRenderingEngine
 		private readonly uint _ebo;
 
 		private readonly uint _numIndices;
-		private readonly uint[] _textures;
+		private readonly Dictionary<Silk.NET.Assimp.TextureType, uint> _textures;
 
-		public unsafe Mesh(GL gl, Vertex[] v, uint[] i, uint[] t)
+		public unsafe Mesh(GL gl, List<Vertex> v, List<uint> i, Dictionary<Silk.NET.Assimp.TextureType, uint> t)
 		{
-			_numIndices = (uint)i.Length;
+			_numIndices = (uint)i.Count;
 			_textures = t;
 
-			// Generate Buffers
 			_vao = gl.GenVertexArray();
-			_vbo = gl.GenBuffer();
-			_ebo = gl.GenBuffer();
-
 			gl.BindVertexArray(_vao);
 
 			// VBO stuff
+			_vbo = gl.GenBuffer();
 			gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-			fixed (void* data = v)
+			fixed (void* data = CollectionsMarshal.AsSpan(v))
 			{
-				gl.BufferData(BufferTargetARB.ArrayBuffer, (uint)v.Length * Vertex.SIZE, data, BufferUsageARB.StaticDraw);
+				gl.BufferData(BufferTargetARB.ArrayBuffer, (uint)v.Count * Vertex.SIZE, data, BufferUsageARB.StaticDraw);
 			}
 
 			// EBO stuff
+			_ebo = gl.GenBuffer();
 			gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
-			fixed (void* data = i)
+			fixed (void* data = CollectionsMarshal.AsSpan(i))
 			{
 				gl.BufferData(BufferTargetARB.ElementArrayBuffer, _numIndices * sizeof(uint), data, BufferUsageARB.StaticDraw);
 			}
@@ -86,45 +86,35 @@ namespace HybridRenderingEngine
 			// Diffuse
 			gl.ActiveTexture(TextureUnit.Texture0);
 			shader.SetInt(gl, "albedoMap", 0);
-			gl.BindTexture(TextureTarget.Texture2D, _textures[0]);
+			gl.BindTexture(TextureTarget.Texture2D, _textures[Silk.NET.Assimp.TextureType.TextureTypeDiffuse]);
 
 			if (textured)
 			{
 				// Emissive
 				gl.ActiveTexture(TextureUnit.Texture1);
 				shader.SetInt(gl, "emissiveMap", 1);
-				gl.BindTexture(TextureTarget.Texture2D, _textures[1]);
+				_textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeEmissive, out uint tex);
+				gl.BindTexture(TextureTarget.Texture2D, tex);
 
 				// Normals
-				if (_textures[2] == 0)
-				{
-					shader.SetBool(gl, "normalMapped", false);
-				}
-				else
-				{
-					shader.SetBool(gl, "normalMapped", true);
-				}
+				bool mapped = _textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeNormals, out tex);
+				shader.SetBool(gl, "normalMapped", mapped);
 				gl.ActiveTexture(TextureUnit.Texture2);
 				shader.SetInt(gl, "normalsMap", 2);
-				gl.BindTexture(TextureTarget.Texture2D, _textures[2]);
+				gl.BindTexture(TextureTarget.Texture2D, tex);
 
-				// Ambient Oclussion
-				if (_textures[3] == 0)
-				{
-					shader.SetBool(gl, "aoMapped", false);
-				}
-				else
-				{
-					shader.SetBool(gl, "aoMapped", true);
-				}
+				// Ambient Occlusion
+				mapped = _textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeAmbientOcclusion, out tex);
+				shader.SetBool(gl, "aoMapped", mapped);
 				gl.ActiveTexture(TextureUnit.Texture3);
 				shader.SetInt(gl, "lightMap", 3);
-				gl.BindTexture(TextureTarget.Texture2D, _textures[3]);
+				gl.BindTexture(TextureTarget.Texture2D, tex);
 
 				// Metal / Roughness
 				gl.ActiveTexture(TextureUnit.Texture4);
 				shader.SetInt(gl, "metalRoughMap", 4);
-				gl.BindTexture(TextureTarget.Texture2D, _textures[4]);
+				_textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeUnknown, out tex); // In this demo, Unknown is only reported for MetallicRoughness
+				gl.BindTexture(TextureTarget.Texture2D, tex);
 			}
 
 			// Mesh Drawing

@@ -2,10 +2,13 @@
 
 namespace HybridRenderingEngine
 {
-	internal unsafe struct ScreenToView
+	internal struct ScreenToView
 	{
 		public Matrix4x4 InverseProjectionMat;
-		public fixed uint TileSizes[4];
+		public uint TileSizeX;
+		public uint TileSizeY;
+		public uint TileSizeZ;
+		public uint TileSizePixels;
 		public uint ScreenWidth;
 		public uint ScreenHeight;
 		public float SliceScalingFactor;

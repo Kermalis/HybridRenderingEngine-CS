@@ -32,7 +32,6 @@ namespace HybridRenderingEngine
 		private const uint GRID_SIZE_Y = 9;
 		private const uint GRID_SIZE_Z = 24;
 		private const uint NUM_CLUSTERS = GRID_SIZE_X * GRID_SIZE_Y * GRID_SIZE_Z;
-		private uint _sizeX;
 
 		private const uint MAX_LIGHTS = 1000; // Pretty overkill for sponza, but ok for testing
 		private const uint MAX_LIGHTS_PER_TILE = 50;
@@ -133,11 +132,8 @@ namespace HybridRenderingEngine
 		// TODO:: some of the buffer generation and binding should be abstracted into a function
 		private unsafe void InitSSBOs(GL gl, Scene currentScene)
 		{
-			// Setting up tile size on both X and Y 
-			_sizeX = (uint)MathF.Ceiling(DisplayManager.SCREEN_WIDTH / (float)GRID_SIZE_X);
-
-			float zFar = currentScene.Cam.Frustum.FarPlane;
-			float zNear = currentScene.Cam.Frustum.NearPlane;
+			float zNear = currentScene.Cam.NearPlane;
+			float zFar = currentScene.Cam.FarPlane;
 
 			// Buffer containing all the clusters
 			// 2 Vec4s per cluster
@@ -159,10 +155,10 @@ namespace HybridRenderingEngine
 				// Setting up contents of buffer
 				ScreenToView screen2View;
 				Matrix4x4.Invert(currentScene.Cam.ProjectionMatrix, out screen2View.InverseProjectionMat);
-				screen2View.TileSizes[0] = GRID_SIZE_X;
-				screen2View.TileSizes[1] = GRID_SIZE_Y;
-				screen2View.TileSizes[2] = GRID_SIZE_Z;
-				screen2View.TileSizes[3] = _sizeX;
+				screen2View.TileSizeX = GRID_SIZE_X;
+				screen2View.TileSizeY = GRID_SIZE_Y;
+				screen2View.TileSizeZ = GRID_SIZE_Z;
+				screen2View.TileSizePixels = (uint)MathF.Ceiling(DisplayManager.SCREEN_WIDTH / (float)GRID_SIZE_X);
 				screen2View.ScreenWidth = DisplayManager.SCREEN_WIDTH;
 				screen2View.ScreenHeight = DisplayManager.SCREEN_HEIGHT;
 				// Basically reduced a log function into a simple multiplication an addition by pre-calculating these
@@ -226,8 +222,6 @@ namespace HybridRenderingEngine
 				_lightIndexGlobalCountSSBO = gl.GenBuffer();
 				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, _lightIndexGlobalCountSSBO);
 
-				// Every tile takes two unsigned ints one to represent the number of lights in that grid
-				// Another to represent the offset 
 				gl.BufferData(BufferTargetARB.ShaderStorageBuffer, sizeof(uint), null, BufferUsageARB.StaticCopy);
 				gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 6, _lightIndexGlobalCountSSBO);
 				gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
@@ -241,8 +235,8 @@ namespace HybridRenderingEngine
 
 			// Building the grid of AABB enclosing the view frustum clusters
 			_buildAABBGridCompShader.Use(gl);
-			_buildAABBGridCompShader.SetFloat(gl, "zNear", currentScene.Cam.Frustum.NearPlane);
-			_buildAABBGridCompShader.SetFloat(gl, "zFar", currentScene.Cam.Frustum.FarPlane);
+			_buildAABBGridCompShader.SetFloat(gl, "zNear", currentScene.Cam.NearPlane);
+			_buildAABBGridCompShader.SetFloat(gl, "zFar", currentScene.Cam.FarPlane);
 			ComputeShader.Dispatch(gl, GRID_SIZE_X, GRID_SIZE_Y, GRID_SIZE_Z);
 
 			// Environment Mapping
@@ -278,7 +272,7 @@ namespace HybridRenderingEngine
 			gl.DepthMask(true);
 
 			// Populating depth cube maps for the point light shadows
-			for (uint i = 0; i < _pointLightShadowFBOs.Length; ++i)
+			for (int i = 0; i < _pointLightShadowFBOs.Length; ++i)
 			{
 				_pointLightShadowFBOs[i].Bind(gl);
 				FrameBuffer.Clear(gl, ClearBufferMask.DepthBufferBit, Vector3.One);
@@ -320,7 +314,7 @@ namespace HybridRenderingEngine
 				ImGui.InputFloat3("Camera Pos", ref currentScene.Cam.Position); // Camera controls
 				ImGui.SliderFloat("Movement speed", ref currentScene.Cam.CamSpeed, 0.005f, 1f);
 			}
-			// Making sure depth testing is enabled 
+			// Making sure depth testing is enabled
 			gl.Enable(EnableCap.DepthTest);
 			gl.DepthMask(true);
 
@@ -365,7 +359,7 @@ namespace HybridRenderingEngine
 			if (ImGui.CollapsingHeader("Post-processing"))
 			{
 				ImGui.SliderInt("Blur", ref sceneCamera.BlurAmount, 0, 10);
-				ImGui.SliderFloat("Exposure", ref sceneCamera.Exposure, 0.1f, 5.0f);
+				ImGui.SliderFloat("Exposure", ref sceneCamera.Exposure, 0.1f, 5f);
 			}
 
 			// TODO:: should be a compute shader

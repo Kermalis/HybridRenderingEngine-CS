@@ -13,6 +13,8 @@ namespace HybridRenderingEngine
 		public const int SCREEN_HEIGHT = 1080;
 		public const float SCREEN_ASPECT_RATIO = SCREEN_WIDTH / (float)SCREEN_HEIGHT;
 
+		private const bool VSYNC = false;
+
 		public static DisplayManager Instance;
 
 		public Sdl SDL;
@@ -56,11 +58,10 @@ namespace HybridRenderingEngine
 			SDL.GLSetAttribute(GLattr.GLContextMajorVersion, 4);
 			SDL.GLSetAttribute(GLattr.GLContextMinorVersion, 3);
 
-			// No point in having a deplth buffer if you're using the default 
-			// buffer only for post processing
-			// SDL.GLSetAttribute(SDL_GL_DEPTH_SIZE, 24);
+			// No point in having a depth buffer if you're using the default buffer just for post processing
+			// SDL.GLSetAttribute(GLattr.GLDepthSize, 24);
 
-			// Also set the default buffer to be sRGB 
+			// Also set the default buffer to be sRGB
 			SDL.GLSetAttribute(GLattr.GLAlphaSize, 8);
 			SDL.GLSetAttribute(GLattr.GLFramebufferSrgbCapable, 1);
 		}
@@ -91,7 +92,7 @@ namespace HybridRenderingEngine
 			Console.WriteLine("Version:  " + OpenGL.GetStringS(StringName.Version));
 
 			// Init GL context settings
-			SDL.GLSetSwapInterval(0); // No VSync
+			SDL.GLSetSwapInterval(VSYNC ? 1 : 0);
 			OpenGL.Enable(EnableCap.CullFace);
 			OpenGL.Enable(EnableCap.Multisample);
 			OpenGL.Enable(EnableCap.FramebufferSrgb);
@@ -121,7 +122,7 @@ namespace HybridRenderingEngine
 			ImGui.NewFrame();
 		}
 
-		// Swaps the finished drawn buffer with the window bufffer.
+		// Swaps the finished drawn buffer with the window buffer.
 		// Also initializes a new frame for the gui renderer.
 		public void SwapDisplayBuffer()
 		{

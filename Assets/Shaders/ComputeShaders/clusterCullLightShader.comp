@@ -20,13 +20,18 @@ struct VolumeTileAABB{
 };
 
 layout (std430, binding = 1) buffer clusterAABB{
-    VolumeTileAABB cluster[ ];
+    VolumeTileAABB cluster[];
 };
 
 layout (std430, binding = 2) buffer screenToView{
     mat4 inverseProjection;
-    uvec4 tileSizes;
+    uint tileSizeX;
+    uint tileSizeY;
+    uint tileSizeZ;
+    uint tileSizePx;
     uvec2 screenDimensions;
+    float scale;
+    float bias;
 };
 
 layout (std430, binding = 3) buffer lightSSBO{

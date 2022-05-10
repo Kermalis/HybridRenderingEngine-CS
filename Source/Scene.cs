@@ -136,7 +136,7 @@ namespace HybridRenderingEngine
 				@params.Scale = new Vector3(scaling[0].GetSingle(), scaling[1].GetSingle(), scaling[2].GetSingle());
 
 				// attempts to load model with the initparameters it has read
-				modelMesh = MyUtils.ASSET_PATH + @"/Models/" + modelName + "/" + modelMesh;
+				modelMesh = MyUtils.ASSET_PATH + @"/Models/" + modelName + '/' + modelMesh;
 				_models.Add(new Model(DisplayManager.Instance.OpenGL, DisplayManager.Instance.Assimp, modelMesh, @params, IBL));
 			}
 		}
@@ -175,16 +175,17 @@ namespace HybridRenderingEngine
 				// Matrix values
 				float left = DirLight.OrthoBoxSize;
 				float right = -left;
-				float top  = left;
-				float bottom = -top;
+				float top = left;
+				float bottom = right;
 				// I'm not sure yet why we have to multiply by the distance here, I understand that if I don't much of the
 				// screen won't be shown, but I am confused as this goes against my understanding of how an orthographic 
 				// projection works. This will have to be reviewed at a later point.
-				DirLight.ShadowProjectionMat = Matrix4x4.CreateOrthographicOffCenter(left, right, bottom, top, DirLight.ZNear, DirLight.ZFar);
-				DirLight.LightView = Matrix4x4.CreateLookAt(DirLight.Distance * -DirLight.Direction, Vector3.Zero, Vector3.UnitY);
+				DirLight.ShadowProjectionMat = MyUtils.GLM_OrthoRH_NO(left, right, bottom, top, DirLight.ZNear, DirLight.ZFar);
+				DirLight.LightView = MyUtils.GLM_LookAtRH(DirLight.Distance * -DirLight.Direction, Vector3.Zero, Vector3.UnitY);
 
 				DirLight.LightSpaceMatrix = DirLight.LightView * DirLight.ShadowProjectionMat; // KERM
 			}
+
 			// Point lights
 			Console.WriteLine("Loading point light...");
 			{
@@ -210,15 +211,15 @@ namespace HybridRenderingEngine
 					PointLights[i].ShadowRes = light.GetProperty("shadowRes").GetUInt32();
 
 					// Matrix setup
-					PointLights[i].ShadowProjectionMat = Matrix4x4.CreatePerspectiveFieldOfView(90f * MyUtils.DEG_TO_RAD, 1f, PointLights[i].ZNear, PointLights[i].ZFar);
+					PointLights[i].ShadowProjectionMat = MyUtils.GLM_PerspectiveRH_NO(90f * MyUtils.DEG_TO_RAD, 1f, PointLights[i].ZNear, PointLights[i].ZFar);
 
-					Vector3 lightPos = PointLights[i].Position;
-					PointLights[i].LookAtPerFace[0] = Matrix4x4.CreateLookAt(lightPos, lightPos + new Vector3(1f, 0f, 0f), new Vector3(0f, -1f, 0f));
-					PointLights[i].LookAtPerFace[1] = Matrix4x4.CreateLookAt(lightPos, lightPos + new Vector3(-1f, 0f, 0f), new Vector3(0f, -1f, 0f));
-					PointLights[i].LookAtPerFace[2] = Matrix4x4.CreateLookAt(lightPos, lightPos + new Vector3(0f, 1f, 0f), new Vector3(0f, 0f, 1f));
-					PointLights[i].LookAtPerFace[3] = Matrix4x4.CreateLookAt(lightPos, lightPos + new Vector3(0f, -1f, 0f), new Vector3(0f, 0f, -1f));
-					PointLights[i].LookAtPerFace[4] = Matrix4x4.CreateLookAt(lightPos, lightPos + new Vector3(0f, 0f, 1f), new Vector3(0f, -1f, 0f));
-					PointLights[i].LookAtPerFace[5] = Matrix4x4.CreateLookAt(lightPos, lightPos + new Vector3(0f, 0f, -1f), new Vector3(0f, -1f, 0f));
+					ref Vector3 lightPos = ref PointLights[i].Position;
+					PointLights[i].LookAtPerFace[0] = MyUtils.GLM_LookAtRH(lightPos, lightPos + new Vector3(1f, 0f, 0f), new Vector3(0f, -1f, 0f));
+					PointLights[i].LookAtPerFace[1] = MyUtils.GLM_LookAtRH(lightPos, lightPos + new Vector3(-1f, 0f, 0f), new Vector3(0f, -1f, 0f));
+					PointLights[i].LookAtPerFace[2] = MyUtils.GLM_LookAtRH(lightPos, lightPos + new Vector3(0f, 1f, 0f), new Vector3(0f, 0f, 1f));
+					PointLights[i].LookAtPerFace[3] = MyUtils.GLM_LookAtRH(lightPos, lightPos + new Vector3(0f, -1f, 0f), new Vector3(0f, 0f, -1f));
+					PointLights[i].LookAtPerFace[4] = MyUtils.GLM_LookAtRH(lightPos, lightPos + new Vector3(0f, 0f, 1f), new Vector3(0f, -1f, 0f));
+					PointLights[i].LookAtPerFace[5] = MyUtils.GLM_LookAtRH(lightPos, lightPos + new Vector3(0f, 0f, -1f), new Vector3(0f, -1f, 0f));
 				}
 			}
 		}
@@ -274,23 +275,23 @@ namespace HybridRenderingEngine
 			// Drawing every object into the depth buffer
 			for (int i = 0; i < _models.Count; ++i)
 			{
-				Model currentModel = _models[i];
+				Model m = _models[i];
 
 				// Matrix setup
-				Matrix4x4 MVP = currentModel.Matrix * VP; // KERM
+				Matrix4x4 MVP = m.Matrix * VP; // KERM
 
 				// Shader setup stuff that changes every frame
 				depthPassShader.SetMat4(gl, "MVP", MVP);
 
 				// Draw object
-				currentModel.Render(gl, depthPassShader, false);
+				m.Render(gl, depthPassShader, false);
 			}
 		}
 
 		// TODO:: refactor this function too with the shadow mapping rewrite, could possibly use virtual 
 		// shadow maps to switch VAO and have one draw call per mesh, but render to multiple parts of the 
 		// texture.
-		public void DrawPointLightShadow(GL gl, Shader pointLightShader, uint index, uint cubeMapTarget)
+		public void DrawPointLightShadow(GL gl, Shader pointLightShader, int index, uint cubeMapTarget)
 		{
 			// Current light
 			PointLight light = PointLights[index];
@@ -309,13 +310,13 @@ namespace HybridRenderingEngine
 
 			for (int i = 0; i < _models.Count; ++i)
 			{
-				Model currentModel = _models[i];
+				Model m = _models[i];
 
 				// Shader setup stuff that changes every frame
-				pointLightShader.SetMat4(gl, "M", currentModel.Matrix);
+				pointLightShader.SetMat4(gl, "M", m.Matrix);
 
 				// Draw object
-				currentModel.Render(gl, pointLightShader, false);
+				m.Render(gl, pointLightShader, false);
 			}
 		}
 
@@ -330,25 +331,25 @@ namespace HybridRenderingEngine
 			float right = -left;
 			float top = left;
 			float bottom = -top;
-			DirLight.ShadowProjectionMat = Matrix4x4.CreateOrthographicOffCenter(left, right, bottom, top, DirLight.ZNear, DirLight.ZFar);
-			DirLight.LightView = Matrix4x4.CreateLookAt(-100f * DirLight.Direction, Vector3.Zero, Vector3.UnitY);
+			DirLight.ShadowProjectionMat = MyUtils.GLM_OrthoRH_NO(left, right, bottom, top, DirLight.ZNear, DirLight.ZFar);
+			DirLight.LightView = MyUtils.GLM_LookAtRH(-100f * DirLight.Direction, Vector3.Zero, Vector3.UnitY);
 
 			DirLight.LightSpaceMatrix = DirLight.LightView * DirLight.ShadowProjectionMat; // KERM
 
 			// Drawing every object into the shadow buffer
 			for (int i = 0; i < _models.Count; ++i)
 			{
-				Model currentModel = _models[i];
+				Model m = _models[i];
 
 				// Matrix setup
-				Matrix4x4 ModelLS = currentModel.Matrix * DirLight.LightSpaceMatrix; // KERM
+				Matrix4x4 ModelLS = m.Matrix * DirLight.LightSpaceMatrix; // KERM
 
 				// Shader setup stuff that changes every frame
 				dirLightShader.Use(gl);
 				dirLightShader.SetMat4(gl, "lightSpaceMatrix", ModelLS);
 
 				// Draw object
-				currentModel.Render(gl, dirLightShader, false);
+				m.Render(gl, dirLightShader, false);
 			}
 		}
 
@@ -358,12 +359,12 @@ namespace HybridRenderingEngine
 		{
 			// Matrix Setup
 			ref Matrix4x4 vm = ref Cam.ViewMatrix;
-			Matrix4x4 VP = vm * Cam.ProjectionMatrix; // KERM
 			Matrix4x4 skyBoxVM = vm;
 			skyBoxVM.M41 = 0f;
 			skyBoxVM.M42 = 0f;
 			skyBoxVM.M43 = 0f;
 			Matrix4x4 VPCubeMap = skyBoxVM * Cam.ProjectionMatrix; // KERM
+			Matrix4x4 VP = vm * Cam.ProjectionMatrix; // KERM
 
 			// Just to avoid magic constants
 			const int NUM_TEXTURES = 5;
@@ -371,11 +372,11 @@ namespace HybridRenderingEngine
 			// Setting colors in the gui
 			if (ImGui.CollapsingHeader("Directional Light Settings"))
 			{
-				ImGui.TextColored(new Vector4(1, 1, 1, 1), "Directional light Settings");
+				ImGui.TextColored(Vector4.One, "Directional light Settings");
 				ImGui.ColorEdit3("Color", ref DirLight.Color);
-				ImGui.SliderFloat("Strength", ref DirLight.Strength, 0.1f, 200.0f);
-				ImGui.SliderFloat("BoxSize", ref DirLight.OrthoBoxSize, 0.1f, 500.0f);
-				ImGui.SliderFloat3("Direction", ref DirLight.Direction, -5.0f, 5.0f);
+				ImGui.SliderFloat("Strength", ref DirLight.Strength, 0.1f, 200f);
+				ImGui.SliderFloat("BoxSize", ref DirLight.OrthoBoxSize, 0.1f, 500f);
+				ImGui.SliderFloat3("Direction", ref DirLight.Direction, -5f, 5f);
 			}
 
 			if (ImGui.CollapsingHeader("Cluster Debugging Light Settings"))
@@ -388,8 +389,8 @@ namespace HybridRenderingEngine
 			mainSceneShader.SetVec3(gl, "dirLight.color", DirLight.Strength * DirLight.Color);
 			mainSceneShader.SetMat4(gl, "lightSpaceMatrix", DirLight.LightSpaceMatrix);
 			mainSceneShader.SetVec3(gl, "cameraPos_wS", Cam.Position);
-			mainSceneShader.SetFloat(gl, "zFar", Cam.Frustum.FarPlane);
-			mainSceneShader.SetFloat(gl, "zNear", Cam.Frustum.NearPlane);
+			mainSceneShader.SetFloat(gl, "zFar", Cam.FarPlane);
+			mainSceneShader.SetFloat(gl, "zNear", Cam.NearPlane);
 
 			for (int i = 0; i < PointLights.Length; ++i)
 			{
@@ -424,10 +425,10 @@ namespace HybridRenderingEngine
 
 			for (int i = 0; i < _visibleModels.Count; ++i)
 			{
-				Model currentModel = _visibleModels[i];
+				Model m = _visibleModels[i];
 
 				// Matrix setup
-				ref Matrix4x4 M = ref currentModel.Matrix;
+				ref Matrix4x4 M = ref m.Matrix;
 				Matrix4x4 MVP = M * VP; // KERM
 
 				// Shader setup stuff that changes every frame
@@ -435,7 +436,7 @@ namespace HybridRenderingEngine
 				mainSceneShader.SetMat4(gl, "M", M);
 
 				// Draw object
-				currentModel.Render(gl, mainSceneShader, true);
+				m.Render(gl, mainSceneShader, true);
 			}
 
 			// Drawing skybox

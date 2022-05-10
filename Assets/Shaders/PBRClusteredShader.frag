@@ -61,7 +61,10 @@ struct LightGrid{
 };
 layout (std430, binding = 2) buffer screenToView{
     mat4 inverseProjection;
-    uvec4 tileSizes;
+    uint tileSizeX;
+    uint tileSizeY;
+    uint tileSizeZ;
+    uint tileSizePx;
     uvec2 screenDimensions;
     float scale;
     float bias;
@@ -101,10 +104,10 @@ uniform float zNear;
 // Or maybe have default ao and normal map values that they can read instead so no if/else branching is necessary
 // although I'm not sure if branching here is problematic, since all fragments will actuall have the same result
 // since they come from the same mesh. TODO:: profile!
-uniform bool normalMapped;
-uniform bool aoMapped;
-uniform bool IBL;
-uniform bool slices;
+uniform int normalMapped;
+uniform int aoMapped;
+uniform int IBL;
+uniform int slices;
 
 // Function prototypes
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir, vec3 albedo, float rough, float metal, float shadow, vec3 F0);
@@ -138,7 +141,7 @@ void main(){
     
     //Normal mapping
     vec3 norm = vec3(0.0);
-    if(normalMapped){
+    if(normalMapped != 0){
         vec3 normal = normalize(2.0 * texture(normalsMap, fs_in.texCoords).rgb - 1.0);
         mat3 TBN  = mat3(fs_in.T, fs_in.B, fs_in.N);
         norm = normalize(TBN * normal ); //going -1 to 1
@@ -158,10 +161,10 @@ void main(){
 
     //Locating which cluster you are a part of
     uint zTile     = uint(max(log2(linearDepth(gl_FragCoord.z)) * scale + bias, 0.0));
-    uvec3 tiles    = uvec3( uvec2( gl_FragCoord.xy / tileSizes[3] ), zTile);
+    uvec3 tiles    = uvec3( uvec2( gl_FragCoord.xy / tileSizePx ), zTile);
     uint tileIndex = tiles.x +
-                     tileSizes.x * tiles.y +
-                     (tileSizes.x * tileSizes.y) * tiles.z;
+                     tileSizeX * tiles.y +
+                     (tileSizeX * tileSizeY) * tiles.z;
 
     //Solving outgoing reflectance of fragment
     vec3 radianceOut = vec3(0.0);
@@ -188,7 +191,7 @@ void main(){
     //which generally looks terrible but it's an okay fallback
     //If IBL is enabled it will use an environment map to do a very rough incoming light approximation from it
     vec3 ambient = vec3(0.025)* albedo;
-    if(IBL){
+    if(IBL != 0){
         vec3  kS = fresnelSchlickRoughness(max(dot(norm, viewDir), 0.0), F0, roughness);
         vec3  kD = 1.0 - kS;
         kD *= 1.0 - metallic;
@@ -201,7 +204,7 @@ void main(){
         vec3 specular = prefilteredColor * (kS * envBRDF.x + envBRDF.y);
         ambient = (kD * diffuse + specular);
     }
-    if(aoMapped){
+    if(aoMapped != 0){
         ambient *= ao;
     }
     radianceOut += ambient;
@@ -209,7 +212,7 @@ void main(){
     //Adding any emissive if there is an assigned map
     radianceOut += emissive;
 
-    if(slices){
+    if(slices != 0){
         FragColor = vec4(colors[uint(mod(float(zTile), 8.0))], 1.0);
     }
     else{
@@ -328,11 +331,15 @@ float calcPointLightShadows(samplerCube depthMap, vec3 fragToLight, float viewDi
     return shadow;
 }
 
-float linearDepth(float depthSample){
-    float depthRange = 2.0 * depthSample - 1.0;
-    // Near... Far... wherever you are...
-    float linear = 2.0 * zNear * zFar / (zFar + zNear - depthRange * (zFar - zNear));
-    return linear;
+// This function is expecting a GLM-style projection matrix
+// Using another type of matrix will not produce the same results (example: System.Numerics, DirectX, Vulkan etc.)
+// So that's why I (Kermalis) am not using the System.Numerics.Matrix4x4 creation methods; I stole the GLM ones
+// If this method is wrong, lights will flicker and cut out, leaving visible marks between clusters
+// Keep this in mind if this technique is getting ported somewhere
+float linearDepth(float depthSample)
+{
+    float ndc = 2.0 * depthSample - 1.0; // [-1, 1]
+    return 2.0 * zNear * zFar / (zFar + zNear - ndc * (zFar - zNear)); // [0, 1]
 }
 
 

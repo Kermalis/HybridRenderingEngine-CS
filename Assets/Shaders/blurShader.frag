@@ -5,9 +5,9 @@ in vec2 TexCoords;
 
 uniform sampler2D screenTexture;
 
-uniform bool horizontal; 
+uniform int horizontal;
 //Gaussian weights
-uniform float weight[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+float weight[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
 
 //TODO::make this a compute shader instead, no need to go through rop
 void main(){
@@ -15,7 +15,7 @@ void main(){
     vec2 tex_offset = 1.0 / textureSize(screenTexture, 0);
     //Contribution by current fragment
     vec3 result = texture(screenTexture, TexCoords).rgb * weight[0];
-    if(horizontal){
+    if(horizontal != 0){
         //horizontal blur 
         for(int i = 1; i < 5; ++i){
             result += texture(screenTexture, TexCoords + vec2(tex_offset.x * i, 0.0)).rgb * weight[i];

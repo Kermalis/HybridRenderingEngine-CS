@@ -172,7 +172,7 @@ namespace HybridRenderingEngine
 				}
 				case TextureType.SING_2D_HDR_DEP_BORDER:
 				{
-					Span<float> borderColor = stackalloc float[4] {0f, 0f, 0f, 1f};
+					Span<float> borderColor = stackalloc float[4] { 0f, 0f, 0f, 1f };
 					gl.BindTexture(TextureTarget.Texture2D, genTextureID);
 					gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, null);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
