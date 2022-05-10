@@ -385,6 +385,7 @@ namespace HybridRenderingEngine
 
 				// Vertical pass
 				gl.BindFramebuffer(FramebufferTarget.Framebuffer, _pingPongFBO.Id);
+				gl.DrawBuffer(DrawBufferMode.ColorAttachment0);
 				_gaussianBlurShader.SetBool(gl, "horizontal", false);
 				_canvas.Render(gl, _simpleFBO.BlurHighEnd);
 			}
