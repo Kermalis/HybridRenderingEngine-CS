@@ -15,7 +15,7 @@ namespace HybridRenderingEngine
 			GL gl = DisplayManager.Instance.OpenGL;
 
 			// Load default scene
-			_ = new Scene(gl, "sponza");
+			_ = new Scene(gl, "Sponza");
 
 			// Initializes rendererer manager, which is in charge of high level
 			// rendering tasks (render queue, locating render scene etc)

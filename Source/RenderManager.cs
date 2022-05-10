@@ -107,26 +107,26 @@ namespace HybridRenderingEngine
 		private void LoadShaders(GL gl)
 		{
 			// Pre-processing
-			_buildAABBGridCompShader = new ComputeShader(gl, "clusterShader.comp");
-			_cullLightsCompShader = new ComputeShader(gl, "clusterCullLightShader.comp");
-			_fillCubeMapShader = new Shader(gl, "cubeMapShader.vert", "buildCubeMapShader.frag");
-			_convolveCubeMap = new Shader(gl, "cubeMapShader.vert", "convolveCubemapShader.frag");
-			_preFilterSpecShader = new Shader(gl, "cubeMapShader.vert", "preFilteringShader.frag");
-			_integrateBRDFShader = new Shader(gl, "screenShader.vert", "brdfIntegralShader.frag");
+			_buildAABBGridCompShader = new ComputeShader(gl, "ClusterShader.comp.glsl");
+			_cullLightsCompShader = new ComputeShader(gl, "ClusterCullLightShader.comp.glsl");
+			_fillCubeMapShader = new Shader(gl, "CubeMapShader.vert.glsl", "BuildCubeMapShader.frag.glsl");
+			_convolveCubeMap = new Shader(gl, "CubeMapShader.vert.glsl", "ConvolveCubemapShader.frag.glsl");
+			_preFilterSpecShader = new Shader(gl, "CubeMapShader.vert.glsl", "PreFilteringShader.frag.glsl");
+			_integrateBRDFShader = new Shader(gl, "ScreenShader.vert.glsl", "BRDFIntegralShader.frag.glsl");
 
 			// Rendering
-			_depthPrePassShader = new Shader(gl, "depthPassShader.vert", "depthPassShader.frag");
-			_pbrClusteredShader = new Shader(gl, "PBRClusteredShader.vert", "PBRClusteredShader.frag");
-			_skyboxShader = new Shader(gl, "skyboxShader.vert", "skyboxShader.frag");
-			_screenSpaceShader = new Shader(gl, "screenShader.vert", "screenShader.frag");
+			_depthPrePassShader = new Shader(gl, "DepthPassShader.vert.glsl", "DepthPassShader.frag.glsl");
+			_pbrClusteredShader = new Shader(gl, "PBRClusteredShader.vert.glsl", "PBRClusteredShader.frag.glsl");
+			_skyboxShader = new Shader(gl, "SkyboxShader.vert.glsl", "SkyboxShader.frag.glsl");
+			_screenSpaceShader = new Shader(gl, "ScreenShader.vert.glsl", "ScreenShader.frag.glsl");
 
 			// Shadow mapping
-			_dirShadowShader = new Shader(gl, "shadowShader.vert", "shadowShader.frag");
-			_pointShadowShader = new Shader(gl, "pointShadowShader.vert", "pointShadowShader.frag", "pointShadowShader.geom");
+			_dirShadowShader = new Shader(gl, "ShadowShader.vert.glsl", "ShadowShader.frag.glsl");
+			_pointShadowShader = new Shader(gl, "PointShadowShader.vert.glsl", "PointShadowShader.frag.glsl", "PointShadowShader.geom.glsl");
 
 			// Post-processing
-			_highPassFilterShader = new Shader(gl, "splitHighShader.vert", "splitHighShader.frag");
-			_gaussianBlurShader = new Shader(gl, "blurShader.vert", "blurShader.frag");
+			_highPassFilterShader = new Shader(gl, "SplitHighShader.vert.glsl", "SplitHighShader.frag.glsl");
+			_gaussianBlurShader = new Shader(gl, "BlurShader.vert.glsl", "BlurShader.frag.glsl");
 		}
 
 		// TODO:: some of the buffer generation and binding should be abstracted into a function

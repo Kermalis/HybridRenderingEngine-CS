@@ -1,6 +1,6 @@
 {
-    "sceneID": "sponza",
-    "skybox": {"id": "barcelona",
+    "sceneID": "Sponza",
+    "skybox": {"id": "Barcelona",
                "hdr": true,
                "resolution": 512
     },
