@@ -95,8 +95,11 @@ namespace HybridRenderingEngine
 			SDL.GLSetSwapInterval(VSYNC ? 1 : 0);
 			OpenGL.Enable(EnableCap.CullFace);
 			OpenGL.Enable(EnableCap.Multisample);
-			OpenGL.Enable(EnableCap.FramebufferSrgb);
 			OpenGL.Enable(EnableCap.TextureCubeMapSeamless);
+			// Since the only framebuffer that's created with an sRGB internalformat
+			// is the default one, this will only affect the default framebuffer
+			// The default one is created as sRGB by SDL with the GLSetAttribute() above
+			OpenGL.Enable(EnableCap.FramebufferSrgb);
 
 			int w, h;
 			SDL.GetWindowSize(_window, &w, &h);

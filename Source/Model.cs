@@ -165,7 +165,8 @@ namespace HybridRenderingEngine
 					if (!_textureAtlas.TryGetValue(fullTexturePath, out Texture texture))
 					{
 						texture = new Texture();
-						texture.LoadTexture(gl, fullTexturePath, false);
+						// Diffuse is sRGB, the rest aren't
+						texture.LoadTexture(gl, fullTexturePath, type == Silk.NET.Assimp.TextureType.TextureTypeDiffuse);
 						_textureAtlas.Add(fullTexturePath, texture);
 					}
 
