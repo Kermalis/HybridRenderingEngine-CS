@@ -14,7 +14,6 @@ in VS_OUT{
     vec3 T;
     vec3 B;
     vec3 N;
-    mat3 TBN;
 } fs_in;
 
 // Dir light uniform
