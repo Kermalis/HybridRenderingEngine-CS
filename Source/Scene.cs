@@ -225,7 +225,7 @@ namespace HybridRenderingEngine
 		}
 
 		// TODO move the fixed size somewhere else
-		private unsafe void GenerateEnvironmentMaps(GL gl)
+		private void GenerateEnvironmentMaps(GL gl)
 		{
 			// Diffuse map
 			IrradianceMap = new CubeMap();
@@ -246,11 +246,11 @@ namespace HybridRenderingEngine
 			BRDF_LUT_Texture.Width = RES;
 			BRDF_LUT_Texture.Id = gl.GenTexture();
 			gl.BindTexture(TextureTarget.Texture2D, BRDF_LUT_Texture.Id);
-			gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.RG16f, RES, RES, 0, PixelFormat.RG, PixelType.Float, null);
 			gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 			gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 			gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 			gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+			gl.TexStorage2D(TextureTarget.Texture2D, 1, SizedInternalFormat.RG16f, RES, RES);
 		}
 
 		// Update Order is critical for correct culling since we want to cull the objects after moving,

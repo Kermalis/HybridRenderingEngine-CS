@@ -42,32 +42,32 @@ namespace HybridRenderingEngine
 			IImageInfo info = Image.Identify(s);
 			s.Seek(0, SeekOrigin.Begin);
 
-			using (var img = Image.Load<Rgba32>(s))
+			using (var img = Image.Load<Bgra32>(s))
 			{
 				s.Dispose();
 
-				InternalFormat internalFormat;
+				SizedInternalFormat format;
 				switch (info.PixelType.BitsPerPixel)
 				{
 					case 8:
 					{
-						internalFormat = InternalFormat.Red;
+						format = SizedInternalFormat.R8;
 						break;
 					}
 					case 16:
 					{
-						internalFormat = InternalFormat.RG;
+						format = SizedInternalFormat.RG8;
 						break;
 					}
 					case 24:
 					{
 						if (sRGB)
 						{
-							internalFormat = InternalFormat.Srgb;
+							format = SizedInternalFormat.Srgb8;
 						}
 						else
 						{
-							internalFormat = InternalFormat.Rgb;
+							format = SizedInternalFormat.Rgb8;
 						}
 						break;
 					}
@@ -75,11 +75,11 @@ namespace HybridRenderingEngine
 					{
 						if (sRGB)
 						{
-							internalFormat = InternalFormat.SrgbAlpha;
+							format = SizedInternalFormat.Srgb8Alpha8;
 						}
 						else
 						{
-							internalFormat = InternalFormat.Rgba;
+							format = SizedInternalFormat.Rgba8;
 						}
 						break;
 					}
@@ -88,7 +88,8 @@ namespace HybridRenderingEngine
 
 				Width = (uint)img.Width;
 				Height = (uint)img.Height;
-				MyUtils.UploadPixelData(gl, img, TextureTarget.Texture2D, internalFormat);
+				gl.TexStorage2D(TextureTarget.Texture2D, 1, format, Width, Height);
+				MyUtils.UploadPixelData(gl, img, TextureTarget.Texture2D);
 			}
 
 			gl.GenerateMipmap(TextureTarget.Texture2D);
@@ -106,7 +107,7 @@ namespace HybridRenderingEngine
 			gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 
 			FileStream s = File.OpenRead(filePath);
-			using (var img = Image.Load<Rgba32>(s))
+			using (var img = Image.Load<Bgra32>(s))
 			{
 				s.Dispose();
 
@@ -114,11 +115,12 @@ namespace HybridRenderingEngine
 
 				Width = (uint)img.Width;
 				Height = (uint)img.Height;
-				MyUtils.UploadPixelData(gl, img, TextureTarget.Texture2D, InternalFormat.Rgb32f);
+				gl.TexStorage2D(TextureTarget.Texture2D, 1, SizedInternalFormat.Rgb32f, Width, Height);
+				MyUtils.UploadPixelData(gl, img, TextureTarget.Texture2D);
 			}
 		}
 
-		public static unsafe uint GenTextureDirectlyOnGPU(GL gl, uint width, uint height, int attachmentNum, TextureType type)
+		public static uint GenTextureDirectlyOnGPU(GL gl, uint width, uint height, int attachmentNum, TextureType type)
 		{
 			uint id = gl.GenTexture();
 			switch (type)
@@ -135,7 +137,7 @@ namespace HybridRenderingEngine
 					gl.BindTexture(TextureTarget.Texture2D, id);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-					gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgba16f, width, height, 0, PixelFormat.Rgb, PixelType.UnsignedByte, null);
+					gl.TexStorage2D(TextureTarget.Texture2D, 1, SizedInternalFormat.Rgba16f, width, height);
 					gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0 + attachmentNum, TextureTarget.Texture2D, id, 0);
 					return id;
 				}
@@ -151,7 +153,7 @@ namespace HybridRenderingEngine
 					gl.BindTexture(TextureTarget.Texture2D, id);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-					gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, null);
+					gl.TexStorage2D(TextureTarget.Texture2D, 1, SizedInternalFormat.DepthComponent32f, width, height);
 					gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, id, 0);
 					return id;
 				}
@@ -162,7 +164,7 @@ namespace HybridRenderingEngine
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-					gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgba16f, width, height, 0, PixelFormat.Rgb, PixelType.UnsignedByte, null);
+					gl.TexStorage2D(TextureTarget.Texture2D, 1, SizedInternalFormat.Rgba16f, width, height);
 					gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0 + attachmentNum, TextureTarget.Texture2D, id, 0);
 					return id;
 				}
@@ -177,7 +179,7 @@ namespace HybridRenderingEngine
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
 					Span<float> borderColor = stackalloc float[4] { 0f, 0f, 0f, 1f };
 					gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBorderColor, borderColor);
-					gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, null);
+					gl.TexStorage2D(TextureTarget.Texture2D, 1, SizedInternalFormat.DepthComponent32f, width, height);
 					gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, id, 0);
 					return id;
 				}

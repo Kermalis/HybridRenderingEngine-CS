@@ -16,17 +16,15 @@ namespace HybridRenderingEngine.Utils
 
 		public const int SDL_BUTTON_LMASK = 1 << (Sdl.ButtonLeft - 1);
 
-		public static unsafe void UploadPixelData(GL gl, Image<Rgba32> img, TextureTarget target, InternalFormat internalformat)
+		public static unsafe void UploadPixelData(GL gl, Image<Bgra32> img, TextureTarget target)
 		{
-			gl.TexImage2D(target, 0, internalformat, (uint)img.Width, (uint)img.Height, 0, GLEnum.Rgba, GLEnum.UnsignedByte, null);
-
 			img.ProcessPixelRows(accessor =>
 			{
 				for (int y = 0; y < accessor.Height; y++)
 				{
 					fixed (void* data = accessor.GetRowSpan(y))
 					{
-						gl.TexSubImage2D(target, 0, 0, y, (uint)accessor.Width, 1, GLEnum.Rgba, GLEnum.UnsignedByte, data);
+						gl.TexSubImage2D(target, 0, 0, y, (uint)accessor.Width, 1, GLEnum.Bgra, GLEnum.UnsignedByte, data);
 					}
 				}
 			});

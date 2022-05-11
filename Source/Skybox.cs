@@ -36,7 +36,7 @@ namespace HybridRenderingEngine
 			}
 			else
 			{
-				SkyboxCubeMap.LoadCubeMap(gl, dir);
+				SkyboxCubeMap.LoadCubeMap(gl, dir, res);
 			}
 		}
 

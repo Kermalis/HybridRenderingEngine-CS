@@ -39,7 +39,7 @@ namespace HybridRenderingEngine
 
 		// Traditional cubemap generation from 6 regular image files named according to the
 		// string array fileHandlesForFaces. Order comes frfom Opengl cubemap specification
-		public void LoadCubeMap(GL gl, string path)
+		public void LoadCubeMap(GL gl, string path, uint res)
 		{
 			Id = gl.GenTexture();
 			gl.BindTexture(TextureTarget.TextureCubeMap, Id);
@@ -50,16 +50,16 @@ namespace HybridRenderingEngine
 			gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 			gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
 
+			gl.TexStorage2D(TextureTarget.TextureCubeMap, 1, SizedInternalFormat.Rgb8, res, res);
+
 			for (int i = 0; i < 6; ++i)
 			{
 				FileStream s = File.OpenRead(path + _fileHandleForFaces[i]);
-				using (var img = Image.Load<Rgba32>(s))
+				using (var img = Image.Load<Bgra32>(s))
 				{
 					s.Dispose();
 
-					uint width = (uint)img.Width;
-					uint height = (uint)img.Height;
-					MyUtils.UploadPixelData(gl, img, TextureTarget.TextureCubeMapPositiveX + i, InternalFormat.Rgb);
+					MyUtils.UploadPixelData(gl, img, TextureTarget.TextureCubeMapPositiveX + i);
 				}
 			}
 		}
