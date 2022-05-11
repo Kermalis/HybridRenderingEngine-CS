@@ -20,18 +20,23 @@ namespace HybridRenderingEngine
 
 			SkyboxCubeMap = new CubeMap();
 			_equirectangularMap = new Texture();
+
+			string dir = SKYBOX_PATH + skyboxName + '/';
 			if (isHDR)
 			{
 				// If the skybox is HDR it will come in as an equirectangular map
 				// We need to load it in and generate the cubemap that will be shown
-				string skyBoxFilePath = SKYBOX_PATH + skyboxName + '/' + skyboxName + ".hdr";
+
+				// For now, ImageSharp cannot read .hdr files, so use temporary .png ones
+				//string skyBoxFilePath = dir + skyboxName + ".hdr";
+				string skyBoxFilePath = dir + skyboxName + ".png";
 
 				_equirectangularMap.LoadHDRTexture(gl, skyBoxFilePath);
 				SkyboxCubeMap.GenerateCubeMap(gl, res, res, CubeMapType.HDR_MAP);
 			}
 			else
 			{
-				SkyboxCubeMap.LoadCubeMap(gl, SKYBOX_PATH);
+				SkyboxCubeMap.LoadCubeMap(gl, dir);
 			}
 		}
 

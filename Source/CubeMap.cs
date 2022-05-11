@@ -1,6 +1,7 @@
 ﻿using HybridRenderingEngine.Utils;
 using Silk.NET.OpenGL;
-using StbiSharp;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.IO;
 using System.Numerics;
@@ -28,7 +29,7 @@ namespace HybridRenderingEngine
 		};
 		private static readonly string[] _fileHandleForFaces = new string[6]
 		{
-			"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"
+			"Right.jpg", "Left.jpg", "Top.jpg", "Bottom.jpg", "Front.jpg", "Back.jpg"
 		};
 
 		public static Cube Cube;
@@ -43,30 +44,24 @@ namespace HybridRenderingEngine
 			Id = gl.GenTexture();
 			gl.BindTexture(TextureTarget.TextureCubeMap, Id);
 
-			for (int i = 0; i < 6; ++i)
-			{
-				MemoryStream ms;
-				using (FileStream stream = File.OpenRead(path + _fileHandleForFaces[i]))
-				{
-					ms = new MemoryStream();
-					stream.CopyTo(ms);
-				}
-				StbiImage img = Stbi.LoadFromMemory(ms, 0);
-				uint width = (uint)img.Width;
-				uint height = (uint)img.Height;
-
-				gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalFormat.Rgb, width, height, 0, PixelFormat.Rgb, PixelType.UnsignedByte, img.Data);
-
-				img.Dispose();
-				ms.Dispose();
-			}
-
-			// Texture parameters
 			gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 			gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 			gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 			gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 			gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
+
+			for (int i = 0; i < 6; ++i)
+			{
+				FileStream s = File.OpenRead(path + _fileHandleForFaces[i]);
+				using (var img = Image.Load<Rgba32>(s))
+				{
+					s.Dispose();
+
+					uint width = (uint)img.Width;
+					uint height = (uint)img.Height;
+					MyUtils.UploadPixelData(gl, img, TextureTarget.TextureCubeMapPositiveX + i, InternalFormat.Rgb);
+				}
+			}
 		}
 
 		// If the cubemap is not loaded in the traditional manner, it is probably generated.
@@ -81,42 +76,45 @@ namespace HybridRenderingEngine
 			{
 				case CubeMapType.SHADOW_MAP:
 				{
-					for (int i = 0; i < 6; ++i)
-					{
-						gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalFormat.DepthComponent, w, h, 0, PixelFormat.DepthComponent, PixelType.Float, null);
-					}
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureCompareMode, (int)GLEnum.CompareRefToTexture);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+
+					for (int i = 0; i < 6; ++i)
+					{
+						gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalFormat.DepthComponent, w, h, 0, PixelFormat.DepthComponent, PixelType.Float, null);
+					}
 					break;
 				}
 				case CubeMapType.HDR_MAP:
 				{
-					for (int i = 0; i < 6; ++i)
-					{
-						gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalFormat.Rgb32f, w, h, 0, PixelFormat.Rgb, PixelType.Float, null);
-					}
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
+
+					for (int i = 0; i < 6; ++i)
+					{
+						gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalFormat.Rgb32f, w, h, 0, PixelFormat.Rgb, PixelType.Float, null);
+					}
 					break;
 				}
 				case CubeMapType.PREFILTER_MAP:
 				{
-					for (int i = 0; i < 6; ++i)
-					{
-						gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalFormat.Rgb16f, w, h, 0, PixelFormat.Rgb, PixelType.Float, null);
-					}
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
 					gl.TexParameterI(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+
+					for (int i = 0; i < 6; ++i)
+					{
+						gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalFormat.Rgb16f, w, h, 0, PixelFormat.Rgb, PixelType.Float, null);
+					}
 
 					// For the specular IBL component we use the mipmap levels to store increasingly
 					// rougher representations of the environment. And then interpolate between those

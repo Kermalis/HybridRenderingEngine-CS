@@ -1,4 +1,7 @@
-﻿using Silk.NET.SDL;
+﻿using Silk.NET.OpenGL;
+using Silk.NET.SDL;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Numerics;
 
@@ -12,6 +15,22 @@ namespace HybridRenderingEngine.Utils
 		public const float RAD_TO_DEG = 180f / MathF.PI;
 
 		public const int SDL_BUTTON_LMASK = 1 << (Sdl.ButtonLeft - 1);
+
+		public static unsafe void UploadPixelData(GL gl, Image<Rgba32> img, TextureTarget target, InternalFormat internalformat)
+		{
+			gl.TexImage2D(target, 0, internalformat, (uint)img.Width, (uint)img.Height, 0, GLEnum.Rgba, GLEnum.UnsignedByte, null);
+
+			img.ProcessPixelRows(accessor =>
+			{
+				for (int y = 0; y < accessor.Height; y++)
+				{
+					fixed (void* data = accessor.GetRowSpan(y))
+					{
+						gl.TexSubImage2D(target, 0, 0, y, (uint)accessor.Width, 1, GLEnum.Rgba, GLEnum.UnsignedByte, data);
+					}
+				}
+			});
+		}
 
 		// GLM-style projection matrices -- used to get expected GL-spec depth and coordinate systems
 		public static Matrix4x4 GLM_LookAtRH(in Vector3 eye, in Vector3 center, in Vector3 up)
