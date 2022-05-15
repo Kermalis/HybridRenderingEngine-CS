@@ -105,6 +105,8 @@ uniform float zNear;
 // since they come from the same mesh. TODO:: profile!
 uniform int normalMapped;
 uniform int aoMapped;
+uniform int emissiveMapped;
+uniform int metalRoughMapped;
 uniform int IBL;
 uniform int slices;
 
@@ -125,11 +127,6 @@ float geometrySmith(float nDotV, float nDotL, float rough);
 void main(){
     // Texture Reads
     vec4 color      = texture(albedoMap, fs_in.texCoords).rgba;
-    vec3 emissive   = texture(emissiveMap, fs_in.texCoords).rgb;
-    float ao        = texture(lightMap, fs_in.texCoords).r;
-    vec2 metalRough = texture(metalRoughMap, fs_in.texCoords).bg;
-    float metallic  = metalRough.x;
-    float roughness = metalRough.y;
 
     vec3 albedo = color.rgb;
     float alpha = color.a;
@@ -154,6 +151,14 @@ void main(){
     vec3 viewDir     = normalize(cameraPos_wS - fs_in.fragPos_wS);
     vec3 R = reflect(-viewDir, norm);
 
+    float metallic = 0.0;
+    float roughness = 0.0;
+    if (metalRoughMapped != 0){
+        vec2 metalRough = texture(metalRoughMap, fs_in.texCoords).bg;
+        metallic  = metalRough.x;
+        roughness = metalRough.y;
+    }
+
     //Correcting zero incidence reflection
     vec3 F0   = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
@@ -165,15 +170,12 @@ void main(){
                      tileSizeX * tiles.y +
                      (tileSizeX * tileSizeY) * tiles.z;
 
-    //Solving outgoing reflectance of fragment
-    vec3 radianceOut = vec3(0.0);
-
     // shadow calcs
     float shadow = calcDirShadow(fs_in.fragPos_lS);
     float viewDistance = length(cameraPos_wS - fs_in.fragPos_wS);
 
     //Directional light 
-    radianceOut = calcDirLight(dirLight, norm, viewDir, albedo, roughness, metallic, shadow, F0) ;
+    vec3 radianceOut = calcDirLight(dirLight, norm, viewDir, albedo, roughness, metallic, shadow, F0);
 
     // Point lights
     uint lightCount       = lightGrid[tileIndex].count;
@@ -189,10 +191,10 @@ void main(){
     //We have two options, if IBL is not enabled for hte given object, we use a flat ambient term
     //which generally looks terrible but it's an okay fallback
     //If IBL is enabled it will use an environment map to do a very rough incoming light approximation from it
-    vec3 ambient = vec3(0.025)* albedo;
+    vec3 ambient = vec3(0.025) * albedo;
     if(IBL != 0){
-        vec3  kS = fresnelSchlickRoughness(max(dot(norm, viewDir), 0.0), F0, roughness);
-        vec3  kD = 1.0 - kS;
+        vec3 kS = fresnelSchlickRoughness(max(dot(norm, viewDir), 0.0), F0, roughness);
+        vec3 kD = 1.0 - kS;
         kD *= 1.0 - metallic;
         vec3 irradiance = texture(irradianceMap, norm).rgb;
         vec3 diffuse    = irradiance * albedo;
@@ -204,12 +206,16 @@ void main(){
         ambient = (kD * diffuse + specular);
     }
     if(aoMapped != 0){
+        float ao = texture(lightMap, fs_in.texCoords).r;
         ambient *= ao;
     }
     radianceOut += ambient;
 
-    //Adding any emissive if there is an assigned map
-    radianceOut += emissive;
+    // Adding any emissive if there is an assigned map
+    if (emissiveMapped != 0){
+        vec3 emissive = texture(emissiveMap, fs_in.texCoords).rgb;
+        radianceOut += emissive;
+    }
 
     if(slices != 0){
         FragColor = vec4(colors[uint(mod(float(zTile), 8.0))], 1.0);

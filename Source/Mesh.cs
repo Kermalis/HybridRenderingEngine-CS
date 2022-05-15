@@ -93,27 +93,29 @@ namespace HybridRenderingEngine
 				// Emissive
 				gl.ActiveTexture(TextureUnit.Texture1);
 				shader.SetInt(gl, "emissiveMap", 1);
-				_textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeEmissive, out uint tex);
+				bool mapped = _textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeEmissive, out uint tex);
+				shader.SetBool(gl, "emissiveMapped", mapped);
 				gl.BindTexture(TextureTarget.Texture2D, tex);
 
 				// Normals
-				bool mapped = _textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeNormals, out tex);
-				shader.SetBool(gl, "normalMapped", mapped);
 				gl.ActiveTexture(TextureUnit.Texture2);
 				shader.SetInt(gl, "normalsMap", 2);
+				mapped = _textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeNormals, out tex);
+				shader.SetBool(gl, "normalMapped", mapped);
 				gl.BindTexture(TextureTarget.Texture2D, tex);
 
 				// Ambient Occlusion
-				mapped = _textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeAmbientOcclusion, out tex);
-				shader.SetBool(gl, "aoMapped", mapped);
 				gl.ActiveTexture(TextureUnit.Texture3);
 				shader.SetInt(gl, "lightMap", 3);
+				mapped = _textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeAmbientOcclusion, out tex);
+				shader.SetBool(gl, "aoMapped", mapped);
 				gl.BindTexture(TextureTarget.Texture2D, tex);
 
 				// Metal / Roughness
 				gl.ActiveTexture(TextureUnit.Texture4);
 				shader.SetInt(gl, "metalRoughMap", 4);
-				_textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeUnknown, out tex); // In this demo, Unknown is only reported for MetallicRoughness
+				mapped = _textures.TryGetValue(Silk.NET.Assimp.TextureType.TextureTypeUnknown, out tex); // In this demo, Unknown is only reported for MetallicRoughness
+				shader.SetBool(gl, "metalRoughMapped", mapped);
 				gl.BindTexture(TextureTarget.Texture2D, tex);
 			}
 
