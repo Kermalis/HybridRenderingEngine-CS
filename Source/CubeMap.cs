@@ -169,6 +169,7 @@ namespace HybridRenderingEngine
 				gl.RenderbufferStorage(RenderbufferTarget.Renderbuffer, InternalFormat.DepthComponent24, mipWidth, mipHeight);
 				gl.Viewport(0, 0, mipWidth, mipHeight);
 
+				filterShader.SetFloat(gl, "roughness", mip / (float)(_maxMipLevels = 1));
 				for (int i = 0; i < 6; ++i)
 				{
 					filterShader.SetMat4(gl, "view", _captureViews[i]);
