@@ -88,24 +88,16 @@ namespace HybridRenderingEngine
 				Vertex vertex;
 
 				// Process position
-				vertex.Position.X = mesh->MVertices[i].X;
-				vertex.Position.Y = mesh->MVertices[i].Y;
-				vertex.Position.Z = mesh->MVertices[i].Z;
+				vertex.Position = mesh->MVertices[i];
 
 				// Process tangent
-				vertex.Tangent.X = mesh->MTangents[i].X;
-				vertex.Tangent.Y = mesh->MTangents[i].Y;
-				vertex.Tangent.Z = mesh->MTangents[i].Z;
+				vertex.Tangent = mesh->MTangents[i];
 
 				// Process biTangent
-				vertex.BiTangent.X = mesh->MBitangents[i].X;
-				vertex.BiTangent.Y = mesh->MBitangents[i].Y;
-				vertex.BiTangent.Z = mesh->MBitangents[i].Z;
+				vertex.BiTangent = mesh->MBitangents[i];
 
 				// Process normals
-				vertex.Normal.X = mesh->MNormals[i].X;
-				vertex.Normal.Y = mesh->MNormals[i].Y;
-				vertex.Normal.Z = mesh->MNormals[i].Z;
+				vertex.Normal = mesh->MNormals[i];
 
 				// Process texture coords
 				if (mesh->MTextureCoords[0] is not null)

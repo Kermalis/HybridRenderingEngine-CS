@@ -39,56 +39,13 @@ namespace HybridRenderingEngine
 			gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 
 			FileStream s = File.OpenRead(filePath);
-			IImageInfo info = Image.Identify(s);
-			s.Seek(0, SeekOrigin.Begin);
-
 			using (var img = Image.Load<Bgra32>(s))
 			{
 				s.Dispose();
 
-				SizedInternalFormat format;
-				switch (info.PixelType.BitsPerPixel)
-				{
-					case 8:
-					{
-						format = SizedInternalFormat.R8;
-						break;
-					}
-					case 16:
-					{
-						format = SizedInternalFormat.RG8;
-						break;
-					}
-					case 24:
-					{
-						if (sRGB)
-						{
-							format = SizedInternalFormat.Srgb8;
-						}
-						else
-						{
-							format = SizedInternalFormat.Rgb8;
-						}
-						break;
-					}
-					case 32:
-					{
-						if (sRGB)
-						{
-							format = SizedInternalFormat.Srgb8Alpha8;
-						}
-						else
-						{
-							format = SizedInternalFormat.Rgba8;
-						}
-						break;
-					}
-					default: throw new NotImplementedException();
-				}
-
 				Width = (uint)img.Width;
 				Height = (uint)img.Height;
-				gl.TexStorage2D(TextureTarget.Texture2D, 1, format, Width, Height);
+				gl.TexStorage2D(TextureTarget.Texture2D, 1, sRGB ? SizedInternalFormat.Srgb8Alpha8 : SizedInternalFormat.Rgba8, Width, Height);
 				MyUtils.UploadPixelData(gl, img, TextureTarget.Texture2D);
 			}
 

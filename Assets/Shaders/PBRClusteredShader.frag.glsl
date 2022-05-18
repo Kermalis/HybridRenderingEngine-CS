@@ -50,7 +50,7 @@ uniform vec3 cameraPos_wS;
 struct PointLight{
     vec4 position;
     vec4 color;
-    bool enabled;
+    uint enabled;
     float intensity;
     float range;
 };
