@@ -297,7 +297,7 @@ namespace HybridRenderingEngine
 		 * 5. Shading by reading from the active tiles list :: DONE
 		 * 6. Post processing and screen space effects :: DONE
 		*/
-		public void Render(GL gl, Scene currentScene, uint start)
+		public void Render(GL gl, Scene currentScene)
 		{
 			// Initiating rendering gui
 			ImGui.Begin("Rendering Controls");
@@ -343,7 +343,7 @@ namespace HybridRenderingEngine
 			_multiSampledFBO.BlitTo(gl, _simpleFBO, ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
 			// 6 - postprocessing, includes bloom, exposure mapping
-			PostProcess(gl, currentScene.Cam, start);
+			PostProcess(gl, currentScene.Cam);
 
 			// Rendering gui scope ends here cannot be done later because the whole frame
 			// is reset in the display buffer swap
@@ -354,7 +354,7 @@ namespace HybridRenderingEngine
 			DisplayManager.Instance.SwapDisplayBuffer();
 		}
 
-		private void PostProcess(GL gl, Camera sceneCamera, uint start)
+		private void PostProcess(GL gl, Camera sceneCamera)
 		{
 			if (ImGui.CollapsingHeader("Post-processing"))
 			{
@@ -398,7 +398,6 @@ namespace HybridRenderingEngine
 			// Shader setup for postprocessing
 			_screenSpaceShader.Use(gl);
 
-			_screenSpaceShader.SetInt(gl, "offset", (int)start);
 			_screenSpaceShader.SetFloat(gl, "exposure", sceneCamera.Exposure);
 			_screenSpaceShader.SetInt(gl, "screenTexture", 0);
 			_screenSpaceShader.SetInt(gl, "bloomBlur", 1);

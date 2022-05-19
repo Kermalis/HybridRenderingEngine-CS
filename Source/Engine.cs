@@ -51,7 +51,7 @@ namespace HybridRenderingEngine
 				// Update all models, camera and lighting in the current scene
 				s.Update(deltaT);
 
-				RenderManager.Instance.Render(DisplayManager.Instance.OpenGL, s, start);
+				RenderManager.Instance.Render(DisplayManager.Instance.OpenGL, s);
 
 				// Obtaining deltaT for any
 				deltaT = sdl.GetTicks() - start;
