@@ -93,6 +93,7 @@ namespace HybridRenderingEngine
 
 			// Init GL context settings
 			SDL.GLSetSwapInterval(VSYNC ? 1 : 0);
+			// Important for blend to remain disabled
 			OpenGL.Enable(EnableCap.CullFace);
 			OpenGL.Enable(EnableCap.Multisample);
 			OpenGL.Enable(EnableCap.TextureCubeMapSeamless);

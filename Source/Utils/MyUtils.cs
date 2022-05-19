@@ -2,7 +2,9 @@
 using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using System;
+using System.IO;
 using System.Numerics;
 
 namespace HybridRenderingEngine.Utils
@@ -15,6 +17,53 @@ namespace HybridRenderingEngine.Utils
 		public const float RAD_TO_DEG = 180f / MathF.PI;
 
 		public const int SDL_BUTTON_LMASK = 1 << (Sdl.ButtonLeft - 1);
+
+		public static void SaveReadBufferAsImage(GL gl, uint width, uint height, string path)
+		{
+			Directory.CreateDirectory(Path.GetDirectoryName(path));
+			path = Path.GetFullPath(path);
+
+			var data = new Rgb24[width * height];
+
+			gl.ReadPixels(0, 0, width, height, GLEnum.Rgb, GLEnum.UnsignedByte, data.AsSpan());
+			using (var img = Image.LoadPixelData(data, (int)width, (int)height))
+			{
+				img.Mutate(x => x.Flip(FlipMode.Vertical));
+				img.SaveAsPng(path);
+			}
+		}
+		public static void SaveTexture2DAsImage(GL gl, uint tex, int width, int height, string path)
+		{
+			Directory.CreateDirectory(Path.GetDirectoryName(path));
+			path = Path.GetFullPath(path);
+
+			gl.BindTexture(GLEnum.Texture2D, tex);
+			var data = new Rgb24[width * height];
+
+			gl.GetTexImage(GLEnum.Texture2D, 0, GLEnum.Rgb, GLEnum.UnsignedByte, data.AsSpan());
+			using (var img = Image.LoadPixelData(data, width, height))
+			{
+				img.Mutate(x => x.Flip(FlipMode.Vertical));
+				img.SaveAsPng(path);
+			}
+		}
+		public static unsafe void SaveCubeMapAsImages(GL gl, uint tex, uint width, uint height, string path)
+		{
+			Directory.CreateDirectory(path);
+			path = Path.GetFullPath(path);
+
+			gl.BindTexture(GLEnum.TextureCubeMap, tex);
+			var data = new Rgb24[width * height];
+
+			for (int i = 0; i < 6; ++i)
+			{
+				gl.GetTexImage(GLEnum.TextureCubeMapPositiveX + i, 0, GLEnum.Rgb, GLEnum.UnsignedByte, data.AsSpan());
+				using (var img = Image.LoadPixelData(data, (int)width, (int)height))
+				{
+					img.SaveAsPng(Path.Combine(path, (GLEnum.TextureCubeMapPositiveX + i) + ".png"));
+				}
+			}
+		}
 
 		public static unsafe void UploadPixelData(GL gl, Image<Bgra32> img, TextureTarget target)
 		{
