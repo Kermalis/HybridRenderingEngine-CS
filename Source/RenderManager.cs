@@ -230,6 +230,8 @@ namespace HybridRenderingEngine
 
 		private void PreProcess(GL gl, Scene currentScene)
 		{
+			gl.Disable(EnableCap.Blend);
+
 			// Initializing the surface that we use to draw screen-space effects
 			_canvas = new Quad(gl);
 
@@ -314,7 +316,8 @@ namespace HybridRenderingEngine
 				ImGui.InputFloat3("Camera Pos", ref currentScene.Cam.Position); // Camera controls
 				ImGui.SliderFloat("Movement speed", ref currentScene.Cam.CamSpeed, 0.005f, 1f);
 			}
-			// Making sure depth testing is enabled
+
+			gl.Disable(EnableCap.Blend);
 			gl.Enable(EnableCap.DepthTest);
 			gl.DepthMask(true);
 
