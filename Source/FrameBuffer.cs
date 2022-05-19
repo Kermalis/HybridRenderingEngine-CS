@@ -153,6 +153,12 @@ namespace HybridRenderingEngine
 			gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, Depth);
 			gl.RenderbufferStorage(RenderbufferTarget.Renderbuffer, InternalFormat.DepthComponent24, size, size);
 		}
+
+		public override void Delete(GL gl)
+		{
+			gl.DeleteRenderbuffer(Depth);
+			gl.DeleteFramebuffer(Id);
+		}
 	}
 	/*
 	Framebuffer Characteristics
