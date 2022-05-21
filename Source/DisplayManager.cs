@@ -4,6 +4,7 @@ using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using Silk.NET.SDL;
 using System;
+using System.Runtime.InteropServices;
 
 namespace HybridRenderingEngine
 {
@@ -35,6 +36,8 @@ namespace HybridRenderingEngine
 			CreateWindow();
 			CreateGLContext();
 			CreateImGuiContext();
+
+			InitGLDebugLog();
 		}
 
 		private void StartSDL()
@@ -64,6 +67,51 @@ namespace HybridRenderingEngine
 			// Also set the default buffer to be sRGB
 			SDL.GLSetAttribute(GLattr.GLAlphaSize, 8);
 			SDL.GLSetAttribute(GLattr.GLFramebufferSrgbCapable, 1);
+
+			SDL.GLSetAttribute(GLattr.GLContextFlags, (int)GLcontextFlag.GLContextDebugFlag);
+		}
+
+		private unsafe void InitGLDebugLog()
+		{
+			OpenGL.GetInteger(GetPName.ContextFlags, out int contextFlags);
+			if (!((ContextFlagMask)contextFlags).HasFlag(ContextFlagMask.ContextFlagDebugBit))
+			{
+				throw new Exception("Couldn't enable GL debug output");
+			}
+			OpenGL.Enable(EnableCap.DebugOutput);
+			OpenGL.Enable(EnableCap.DebugOutputSynchronous);
+			OpenGL.DebugMessageCallback(HandleGLError, null);
+		}
+
+		private static void HandleGLError(GLEnum _, GLEnum type, int id, GLEnum severity, int length, IntPtr message, IntPtr __)
+		{
+			if (severity == GLEnum.DebugSeverityNotification)
+			{
+				return;
+			}
+			// GL_INVALID_ENUM error generated. Operation is not valid from the core profile.
+			if (id == 1280)
+			{
+				return; // Ignore legacy profile func warnings. I don't use any legacy functions, but streaming apps may attempt to when hooking in
+			}
+			// Pixel-path performance warning: Pixel transfer is synchronized with 3D rendering.
+			if (id == 131154)
+			{
+				return; // Ignore NVIDIA driver warning. Happens when taking a screenshot with the entire screen
+			}
+			// Program/shader state performance warning: Vertex shader in program {num} is being recompiled based on GL state.
+			if (id == 131218)
+			{
+				return; // Ignore NVIDIA driver warning. Not sure what causes it and neither is Google
+			}
+			string msg = Marshal.PtrToStringAnsi(message, length);
+			Console.WriteLine("GL Error:");
+			Console.WriteLine("Message: \"{0}\"", msg);
+			Console.WriteLine("Type: \"{0}\"", type);
+			Console.WriteLine("Id: \"{0}\"", id);
+			Console.WriteLine("Severity: \"{0}\"", severity);
+			Console.WriteLine();
+			;
 		}
 
 		private void CreateWindow()
