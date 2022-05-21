@@ -130,8 +130,8 @@ namespace HybridRenderingEngine
 					gl.BindTexture(TextureTarget.Texture2D, id);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureCompareMode, (int)GLEnum.CompareRefToTexture);
-					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureCompareFunc, (int)GLEnum.Less);
+					//gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureCompareMode, (int)GLEnum.CompareRefToTexture);
+					//gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureCompareFunc, (int)GLEnum.Less);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
 					gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
 					Span<float> borderColor = stackalloc float[4] { 0f, 0f, 0f, 1f };
