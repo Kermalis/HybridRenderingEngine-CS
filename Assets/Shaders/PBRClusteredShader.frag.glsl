@@ -63,10 +63,13 @@ layout (std430, binding = 2) buffer screenToView{
     uint tileSizeX;
     uint tileSizeY;
     uint tileSizeZ;
-    uint tileSizePx;
-    uvec2 screenDimensions;
+    uint padding1;
+    vec2 tileSizePx;
+    vec2 viewPxSize;
     float scale;
     float bias;
+    uint padding2;
+    uint padding3;
 };
 layout (std430, binding = 3) buffer lightSSBO{
     PointLight pointLight[];
@@ -165,7 +168,7 @@ void main(){
 
     //Locating which cluster you are a part of
     uint zTile     = uint(max(log2(linearDepth(gl_FragCoord.z)) * scale + bias, 0.0));
-    uvec3 tiles    = uvec3( uvec2( gl_FragCoord.xy / tileSizePx ), zTile);
+    uvec3 tiles    = uvec3( uvec2( gl_FragCoord.xy * tileSizePx ), zTile);
     uint tileIndex = tiles.x +
                      tileSizeX * tiles.y +
                      (tileSizeX * tileSizeY) * tiles.z;

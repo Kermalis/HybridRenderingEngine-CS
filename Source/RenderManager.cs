@@ -158,9 +158,9 @@ namespace HybridRenderingEngine
 				screen2View.TileSizeX = GRID_SIZE_X;
 				screen2View.TileSizeY = GRID_SIZE_Y;
 				screen2View.TileSizeZ = GRID_SIZE_Z;
-				screen2View.TileSizePixels = (uint)MathF.Ceiling(DisplayManager.SCREEN_WIDTH / (float)GRID_SIZE_X);
-				screen2View.ScreenWidth = DisplayManager.SCREEN_WIDTH;
-				screen2View.ScreenHeight = DisplayManager.SCREEN_HEIGHT;
+				screen2View.TileSizePixels.X = 1f / MathF.Ceiling(DisplayManager.SCREEN_WIDTH / (float)GRID_SIZE_X);
+				screen2View.TileSizePixels.Y = 1f / MathF.Ceiling(DisplayManager.SCREEN_HEIGHT / (float)GRID_SIZE_Y);
+				screen2View.ViewPixelSize = new Vector2(1f / DisplayManager.SCREEN_WIDTH, 1f / DisplayManager.SCREEN_HEIGHT);
 				// Basically reduced a log function into a simple multiplication an addition by pre-calculating these
 				screen2View.SliceScalingFactor = GRID_SIZE_Z / MathF.Log2(zFar / zNear);
 				screen2View.SliceBiasFactor = -(GRID_SIZE_Z * MathF.Log2(zNear) / MathF.Log2(zFar / zNear));

@@ -14,10 +14,13 @@ layout (std430, binding = 2) buffer screenToView{
     uint tileSizeX;
     uint tileSizeY;
     uint tileSizeZ;
-    uint tileSizePx;
-    uvec2 screenDimensions;
+    uint padding1;
+    vec2 tileSizePx;
+    vec2 viewPxSize;
     float scale;
     float bias;
+    uint padding2;
+    uint padding3;
 };
 
 //Shared between all clusters
@@ -39,8 +42,9 @@ void main(){
                      gl_WorkGroupID.z * (gl_NumWorkGroups.x * gl_NumWorkGroups.y);
 
     // Calculating the min and max point in screen space
-    vec4 maxPoint_sS = vec4(vec2(gl_WorkGroupID.x + 1, gl_WorkGroupID.y + 1) * tileSizePx, -1.0, 1.0); // Top Right
-    vec4 minPoint_sS = vec4(gl_WorkGroupID.xy * tileSizePx, -1.0, 1.0); // Bottom left
+    // tileSizePx is 1/x so we have to divide again to get a y*x
+    vec4 maxPoint_sS = vec4(vec2(gl_WorkGroupID.x + 1, gl_WorkGroupID.y + 1) / tileSizePx, -1.0, 1.0); // Top Right
+    vec4 minPoint_sS = vec4(gl_WorkGroupID.xy / tileSizePx, -1.0, 1.0); // Bottom left
     
     // Pass min and max to view space
     vec3 maxPoint_vS = screen2View(maxPoint_sS).xyz;
@@ -93,7 +97,7 @@ vec4 clipToView(vec4 clip){
 
 vec4 screen2View(vec4 screen){
     // Convert to NDC
-    vec2 texCoord = screen.xy / screenDimensions.xy;
+    vec2 texCoord = screen.xy * viewPxSize.xy;
 
     // Convert to clipSpace
     // vec4 clip = vec4(vec2(texCoord.x, 1.0 - texCoord.y)* 2.0 - 1.0, screen.z, screen.w);
